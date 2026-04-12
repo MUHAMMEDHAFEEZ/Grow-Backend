@@ -1763,6 +1763,8 @@ components:
 servers:
 - url: http://localhost:8000
   description: Local development server
+- url: https://edugrow.pythonanywhere.com
+  description: Production server
 tags:
 - name: Auth
   description: Register, login, token refresh, profile

@@ -214,7 +214,7 @@ SPECTACULAR_SETTINGS = {
     'SECURITY': [{'BearerAuth': []}],
     'COMPONENT_SPLIT_REQUEST': True,
     'SCHEMA_PATH_PREFIX': r'/api/v1/',
-    'SERVERS': [{'url': 'http://localhost:8000', 'description': 'Local development server'}],
+    'SERVERS': [{'url': 'http://localhost:8000', 'description': 'Local development server'}, {'url': 'https://edugrow.pythonanywhere.com', 'description': 'Production server'}],
     # JWT security scheme shown in Swagger UI "Authorize" button
     'APPEND_COMPONENTS': {
         'securitySchemes': {
