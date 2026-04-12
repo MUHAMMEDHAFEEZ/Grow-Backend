@@ -1,8 +1,10 @@
 """
 core/exceptions.py — Shared domain exceptions.
 """
-from rest_framework.exceptions import APIException
+from __future__ import annotations
+
 from rest_framework import status
+from rest_framework.exceptions import APIException
 
 
 class NotFound(APIException):
@@ -35,3 +37,12 @@ class Conflict(APIException):
 
     def __init__(self, detail: str) -> None:
         super().__init__(detail=detail)
+
+
+class RateLimitExceeded(APIException):
+    status_code = status.HTTP_429_TOO_MANY_REQUESTS
+    default_code = "rate_limit_exceeded"
+
+    def __init__(self, detail: str, retry_after=None) -> None:
+        super().__init__(detail=detail)
+        self.retry_after = retry_after

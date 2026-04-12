@@ -28,7 +28,7 @@ DEBUG = True
 ALLOWED_HOSTS = ['*']
 
 
-# Application definition
+#  ====================== Application definition ======================
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -71,6 +71,8 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'grow.urls'
 
+
+# ====================== Templates ======================
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -86,11 +88,19 @@ TEMPLATES = [
     },
 ]
 
+#  ====================== WSGI ======================
 WSGI_APPLICATION = 'grow.wsgi.application'
 
 
-# Database
+#  ====================== Database ======================
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
+}
 
 # DATABASES = {
 #     'default': {
@@ -103,15 +113,10 @@ WSGI_APPLICATION = 'grow.wsgi.application'
 #     }
 # }
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
 
 
-# Password validation
+
+#  ====================== Password validation ====================== 
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -131,7 +136,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-# Internationalization
+#  ====================== Internationalization  ====================== 
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
 LANGUAGE_CODE = 'en-us'
@@ -143,17 +148,24 @@ USE_I18N = True
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/6.0/howto/static-files/
+#  ======================  Static files (CSS, JavaScript, Images) ======================
+#  https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# ====================== Enrollment Code Settings ======================
+ENROLLMENT_CODE_INITIAL_POOL        = 50    # codes auto-generated per school creation
+ENROLLMENT_RATE_LIMIT_MAX_ATTEMPTS  = 10    # failed attempts before lockout
+ENROLLMENT_RATE_LIMIT_WINDOW_SECONDS  = 3600  # 1-hour sliding window
+ENROLLMENT_RATE_LIMIT_LOCKOUT_SECONDS = 3600  # 1-hour lockout duration
+
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 LOGIN_URL = "login"
 
-# Email — prints to console in development; swap for SMTP in production
+#  ======================  Email — prints to console in development; swap for SMTP in production ======================
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 DEFAULT_FROM_EMAIL = "noreply@grow-platform.io"
 

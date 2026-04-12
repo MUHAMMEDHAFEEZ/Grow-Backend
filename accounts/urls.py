@@ -2,7 +2,11 @@ from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from .views import (
+    EnrollmentCodeListView,
+    GenerateCodesView,
     ParentProfileView,
+    RevokeCodeView,
+    UseCodeView,
     change_password_view,
     forgot_password_view,
     login,
@@ -35,4 +39,10 @@ urlpatterns = [
 
     # School admin
     path("school/",           school_view,            name="auth-school"),
+
+    # Enrollment codes
+    path("enrollment-codes/use/",                                                    UseCodeView.as_view(),          name="enrollment-code-use"),
+    path("schools/<int:school_id>/enrollment-codes/",                                EnrollmentCodeListView.as_view(), name="enrollment-codes-list"),
+    path("schools/<int:school_id>/enrollment-codes/generate/",                       GenerateCodesView.as_view(),    name="enrollment-codes-generate"),
+    path("schools/<int:school_id>/enrollment-codes/<int:code_id>/revoke/",           RevokeCodeView.as_view(),       name="enrollment-code-revoke"),
 ]

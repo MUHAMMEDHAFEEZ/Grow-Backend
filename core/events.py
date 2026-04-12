@@ -58,8 +58,9 @@ class EventBus:
 # ---------------------------------------------------------------------------
 
 class Events:
-    ASSIGNMENT_CREATED = "assignment_created"
-    SUBMISSION_CREATED = "submission_created"
-    SUBMISSION_GRADED  = "submission_graded"
-    ATTENDANCE_MARKED  = "attendance_marked"
-    ENROLLMENT_CREATED = "enrollment_created"
+    ASSIGNMENT_CREATED  = "assignment_created"
+    SUBMISSION_CREATED  = "submission_created"
+    SUBMISSION_GRADED   = "submission_graded"
+    ATTENDANCE_MARKED   = "attendance_marked"
+    ENROLLMENT_CREATED  = "enrollment_created"
+    SCHOOL_MEMBER_ADDED = "school_member_added"

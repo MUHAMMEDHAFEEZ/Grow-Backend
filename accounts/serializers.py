@@ -1,7 +1,9 @@
+import uuid as _uuid_module
+
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from .models import ParentProfile, School
+from .models import EnrollmentCode, ParentProfile, School, SchoolMembership
 
 User = get_user_model()
 
@@ -149,3 +151,63 @@ class SchoolSerializer(serializers.ModelSerializer):
 
 class SchoolCreateSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=255, help_text="School name.")
+
+
+# ── Enrollment Code Serializers ────────────────────────────────────────────────
+
+
+class UseCodeSerializer(serializers.Serializer):
+    code = serializers.CharField(
+        help_text="Enrollment code token (UUID format, 36 characters).",
+    )
+
+    def validate_code(self, value: str) -> str:
+        if not value or not value.strip():
+            raise serializers.ValidationError("Invalid code format.")
+        try:
+            _uuid_module.UUID(str(value).strip())
+        except (ValueError, AttributeError):
+            raise serializers.ValidationError("Invalid code format.")
+        return str(value).strip()
+
+
+class _BriefUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["id", "username", "email"]
+
+
+class _BriefSchoolSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = School
+        fields = ["id", "name", "slug"]
+
+
+class MembershipSerializer(serializers.ModelSerializer):
+    school = _BriefSchoolSerializer(read_only=True)
+
+    class Meta:
+        model = SchoolMembership
+        fields = ["school", "role", "joined_at"]
+
+
+class EnrollmentCodeSerializer(serializers.ModelSerializer):
+    used_by    = _BriefUserSerializer(read_only=True)
+    revoked_by = _BriefUserSerializer(read_only=True)
+
+    class Meta:
+        model = EnrollmentCode
+        fields = [
+            "id", "token", "status",
+            "used_by", "used_at",
+            "revoked_by", "revoked_at",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+
+class GenerateCodesSerializer(serializers.Serializer):
+    quantity = serializers.IntegerField(
+        min_value=1,
+        help_text="Number of enrollment codes to generate (must be ≥ 1).",
+    )

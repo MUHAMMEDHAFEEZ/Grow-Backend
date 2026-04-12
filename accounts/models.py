@@ -1,6 +1,7 @@
 import uuid
 from datetime import timedelta
 
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils import timezone
@@ -114,3 +115,110 @@ class PasswordResetToken(models.Model):
 
     def __str__(self) -> str:
         return f"ResetToken({self.user.email}, used={self.is_used})"
+
+
+# ── Enrollment Code System ────────────────────────────────────────────────────
+
+
+class EnrollmentCode(models.Model):
+    """Single-use cryptographically random token tied to a school."""
+
+    class Status(models.TextChoices):
+        AVAILABLE = "available", "Available"
+        USED      = "used",      "Used"
+        REVOKED   = "revoked",   "Revoked"
+
+    school     = models.ForeignKey(
+        "School", on_delete=models.CASCADE, related_name="enrollment_codes"
+    )
+    token      = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    status     = models.CharField(
+        max_length=10, choices=Status.choices, default=Status.AVAILABLE
+    )
+    used_by    = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="used_codes",
+    )
+    used_at    = models.DateTimeField(null=True, blank=True)
+    revoked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="revoked_codes",
+    )
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["school", "status"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"EnrollmentCode({self.token}, {self.status}, school={self.school_id})"
+
+
+class SchoolMembership(models.Model):
+    """Junction table: a user's membership in a school with a role."""
+
+    class Role(models.TextChoices):
+        STUDENT = "student", "Student"
+        TEACHER = "teacher", "Teacher"
+        ADMIN   = "admin",   "Admin"
+
+    user      = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="school_memberships"
+    )
+    school    = models.ForeignKey(
+        "School", on_delete=models.CASCADE, related_name="memberships"
+    )
+    role      = models.CharField(max_length=10, choices=Role.choices)
+    joined_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("user", "school")
+        indexes = [
+            models.Index(fields=["user", "role"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"SchoolMembership({self.user_id}, {self.school_id}, {self.role})"
+
+
+class EnrollmentRateLimit(models.Model):
+    """Per-user DB counter for rate-limiting failed enrollment code attempts."""
+
+    user            = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="enrollment_rate_limit"
+    )
+    failed_attempts = models.IntegerField(default=0)
+    window_start    = models.DateTimeField(null=True, blank=True)
+    locked_until    = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self) -> str:
+        return f"RateLimit(user={self.user_id}, attempts={self.failed_attempts})"
+
+
+class EnrollmentCodeEvent(models.Model):
+    """Append-only audit log for enrollment code lifecycle events."""
+
+    class EventType(models.TextChoices):
+        GENERATED = "generated", "Generated"
+        USED      = "used",      "Used"
+        REVOKED   = "revoked",   "Revoked"
+
+    code       = models.ForeignKey(
+        "EnrollmentCode", on_delete=models.CASCADE, related_name="events"
+    )
+    event_type = models.CharField(max_length=20, choices=EventType.choices)
+    actor      = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, related_name="enrollment_events",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["code", "event_type"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"CodeEvent({self.event_type}, code={self.code_id}, actor={self.actor_id})"

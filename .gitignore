@@ -212,3 +212,4 @@ __marimo__/
 /.specify
 db.sqlite3
 specs/
+Claude.md

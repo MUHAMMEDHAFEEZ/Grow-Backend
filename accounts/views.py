@@ -8,31 +8,39 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from core.exceptions import NotFound, PermissionDenied, RateLimitExceeded, ValidationError
 from core.permissions import IsParent, IsSchoolAdmin
 
-from .selectors import get_school_for_admin
+from .selectors import get_enrollment_codes_for_school, get_school_for_admin
 from .serializers import (
     ChangePasswordSerializer,
+    EnrollmentCodeSerializer,
     ForgotPasswordSerializer,
+    GenerateCodesSerializer,
     LoginResponseSerializer,
     LoginSerializer,
     LogoutSerializer,
+    MembershipSerializer,
     ParentProfileSerializer,
     ProfileUpdateSerializer,
     RegisterSerializer,
     ResetPasswordSerializer,
     SchoolCreateSerializer,
     SchoolSerializer,
+    UseCodeSerializer,
     UserSerializer,
 )
 from .services import (
     change_password,
     create_school,
     forgot_password,
+    generate_enrollment_codes,
     login_user,
     logout_user,
     reset_password,
+    revoke_enrollment_code,
     update_profile,
+    use_enrollment_code,
 )
 
 
@@ -367,3 +375,170 @@ def school_view(request: Request) -> Response:
     serializer.is_valid(raise_exception=True)
     school = create_school(admin=request.user, name=serializer.validated_data["name"])
     return Response(SchoolSerializer(school).data, status=status.HTTP_201_CREATED)
+
+
+# ── Enrollment Code Endpoints ─────────────────────────────────────────────────
+
+from rest_framework.views import APIView
+from rest_framework.pagination import PageNumberPagination
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import OrderingFilter
+
+
+@extend_schema(
+    tags=["Enrollment"],
+    summary="Use an enrollment code",
+    description=(
+        "Submit a single-use enrollment code to join the associated school. "
+        "The code is atomically consumed on success. "
+        "Failed attempts (wrong code, used code, revoked code) count toward the rate limit."
+    ),
+    request=UseCodeSerializer,
+    responses={
+        201: OpenApiResponse(response=MembershipSerializer, description="Enrolled successfully."),
+        400: OpenApiResponse(description="Invalid, used, revoked code, or business rule violation."),
+        401: OpenApiResponse(description="Authentication required."),
+        429: OpenApiResponse(description="Rate limit exceeded."),
+    },
+)
+class UseCodeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request) -> Response:
+        serializer = UseCodeSerializer(data=request.data)
+        if not serializer.is_valid():
+            first_error = next(iter(serializer.errors.values()))[0]
+            return Response({"error": str(first_error)}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            membership = use_enrollment_code(
+                code_token=serializer.validated_data["code"],
+                user=request.user,
+            )
+        except RateLimitExceeded as exc:
+            return Response(
+                {
+                    "error": str(exc.detail),
+                    "retry_after": exc.retry_after.isoformat() if exc.retry_after else None,
+                },
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+        except (ValidationError, PermissionDenied) as exc:
+            return Response({"error": str(exc.detail)}, status=exc.status_code)
+
+        return Response(MembershipSerializer(membership).data, status=status.HTTP_201_CREATED)
+
+
+@extend_schema(
+    tags=["Enrollment"],
+    summary="List enrollment codes for a school",
+    description=(
+        "**School admins only.** Returns a paginated list of all enrollment codes for the "
+        "caller's school, including status, usage details, and revocation details."
+    ),
+    responses={
+        200: OpenApiResponse(response=EnrollmentCodeSerializer(many=True), description="Paginated code list."),
+        403: OpenApiResponse(description="Not the school's admin."),
+        404: OpenApiResponse(description="School not found."),
+    },
+)
+class EnrollmentCodeListView(APIView):
+    permission_classes = [IsAuthenticated, IsSchoolAdmin]
+
+    def get(self, request: Request, school_id: int) -> Response:
+        try:
+            qs = get_enrollment_codes_for_school(school_id=school_id, admin=request.user)
+        except (NotFound, PermissionDenied) as exc:
+            return Response({"error": str(exc.detail)}, status=exc.status_code)
+
+        # Filter by status
+        status_filter = request.query_params.get("status")
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+
+        # Ordering
+        ordering = request.query_params.get("ordering", "-created_at")
+        allowed_orderings = {"created_at", "-created_at", "status", "-status"}
+        if ordering in allowed_orderings:
+            qs = qs.order_by(ordering)
+
+        paginator = PageNumberPagination()
+        paginator.page_size = 20
+        page = paginator.paginate_queryset(qs, request)
+        serializer = EnrollmentCodeSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
+
+
+@extend_schema(
+    tags=["Enrollment"],
+    summary="Generate additional enrollment codes",
+    description=(
+        "**School admins only.** Generates a batch of additional single-use enrollment "
+        "codes for the school. No upper limit on quantity."
+    ),
+    request=GenerateCodesSerializer,
+    responses={
+        201: OpenApiResponse(description="Codes generated."),
+        400: OpenApiResponse(description="Invalid quantity."),
+        403: OpenApiResponse(description="Not the school's admin."),
+        404: OpenApiResponse(description="School not found."),
+    },
+)
+class GenerateCodesView(APIView):
+    permission_classes = [IsAuthenticated, IsSchoolAdmin]
+
+    def post(self, request: Request, school_id: int) -> Response:
+        serializer = GenerateCodesSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            from .models import School
+            school = School.objects.get(pk=school_id)
+        except Exception:
+            return Response({"error": "School not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if school.created_by_id != request.user.pk:
+            return Response({"error": "You do not own this school."}, status=status.HTTP_403_FORBIDDEN)
+
+        quantity = serializer.validated_data["quantity"]
+        try:
+            codes = generate_enrollment_codes(school=school, quantity=quantity, created_by=request.user)
+        except ValidationError as exc:
+            return Response({"error": str(exc.detail)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(
+            {"generated": len(codes), "codes": EnrollmentCodeSerializer(codes, many=True).data},
+            status=status.HTTP_201_CREATED,
+        )
+
+
+@extend_schema(
+    tags=["Enrollment"],
+    summary="Revoke an enrollment code",
+    description=(
+        "**School admins only.** Permanently revokes an available (unused) enrollment code. "
+        "Revoked codes cannot be enrolled with."
+    ),
+    responses={
+        200: OpenApiResponse(response=EnrollmentCodeSerializer, description="Code revoked."),
+        400: OpenApiResponse(description="Code already used or revoked."),
+        403: OpenApiResponse(description="Not the school's admin."),
+        404: OpenApiResponse(description="School or code not found."),
+    },
+)
+class RevokeCodeView(APIView):
+    permission_classes = [IsAuthenticated, IsSchoolAdmin]
+    serializer_class = EnrollmentCodeSerializer  # hint for drf-spectacular
+
+    def post(self, request: Request, school_id: int, code_id: int) -> Response:
+        try:
+            code = revoke_enrollment_code(
+                code_id=code_id, school_id=school_id, admin=request.user
+            )
+        except (NotFound, PermissionDenied) as exc:
+            return Response({"error": str(exc.detail)}, status=exc.status_code)
+        except ValidationError as exc:
+            return Response({"error": str(exc.detail)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(EnrollmentCodeSerializer(code).data, status=status.HTTP_200_OK)
