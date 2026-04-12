@@ -1,0 +1,1782 @@
+openapi: 3.0.3
+info:
+  title: Grow Educational Platform API
+  version: 1.0.0
+  description: |-
+    **Grow** is a modular educational platform for students, teachers, and parents.
+
+    ## Authentication
+    All protected endpoints require a JWT Bearer token.
+    1. Call `POST /api/v1/auth/login/` with your email and password.
+    2. Copy the `access` token from the response.
+    3. Click **Authorize** above and enter: `Bearer <your_token>`.
+
+    ## Roles
+    | Role | Capabilities |
+    |---|---|
+    | `teacher` | Manage courses, assignments, grade submissions, mark attendance |
+    | `student` | Enroll in courses, submit assignments, view own grades |
+    | `parent`  | View child's grades, attendance, and notifications |
+  contact:
+    name: Grow Backend Team
+  license:
+    name: Proprietary
+paths:
+  /api/v1/attendance/:
+    get:
+      operationId: attendance_list
+      description: |-
+        Query attendance records. Behaviour depends on role and query params:
+
+        | Caller | Result |
+        |---|---|
+        | Teacher with `?course=<id>` | All records for that course |
+        | Teacher with `?course=<id>&date=YYYY-MM-DD` | Records for one day |
+        | Any with `?student=<id>` | Records for a specific student |
+        | Student (no params) | Own attendance history |
+        | Parent (no params) | Linked child's attendance history |
+      summary: List attendance records
+      parameters:
+      - in: query
+        name: course
+        schema:
+          type: integer
+        description: Filter by course ID.
+      - in: query
+        name: date
+        schema:
+          type: string
+        description: Filter by date (YYYY-MM-DD, e.g. 2026-04-10). Only applies when
+          `course` is also provided.
+      - in: query
+        name: student
+        schema:
+          type: integer
+        description: Filter by student ID.
+      tags:
+      - Attendance
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AttendanceRecord'
+          description: ''
+    post:
+      operationId: attendance_create
+      description: |-
+        **Teachers only.** Record attendance for an entire class session in one call.
+
+        - Each `records` entry specifies one student and their status.
+        - Calling this endpoint again for the same `(course, student, date)` will **update**   the existing record (upsert behaviour).
+        - When a student is marked `absent`, their linked parent receives an in-app notification.
+      summary: Mark attendance for a session
+      tags:
+      - Attendance
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MarkAttendanceRequest'
+            examples:
+              MarkAttendance:
+                value:
+                  course: 1
+                  date: '2026-04-10'
+                  records:
+                  - student_id: 5
+                    status: present
+                  - student_id: 6
+                    status: absent
+                  - student_id: 7
+                    status: late
+                summary: Mark Attendance
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MarkAttendanceRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MarkAttendanceRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AttendanceRecord'
+          description: Attendance records saved.
+        '400':
+          description: Validation error.
+        '403':
+          description: Only teachers can mark attendance.
+        '404':
+          description: Course not found or you do not own it.
+  /api/v1/auth/login/:
+    post:
+      operationId: auth_login_create
+      description: |-
+        Authenticate with email and password. Returns:
+
+        - `access` — short-lived JWT (60 min). Send as `Authorization: Bearer <token>`.
+        - `refresh` — long-lived JWT (7 days). Use `POST /auth/token/refresh/` to get a new access token.
+
+        Click the **Authorize** button at the top of this page and paste the `access` token to authenticate all subsequent requests.
+      summary: Login — obtain JWT tokens
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              LoginExample:
+                value:
+                  email: sara@school.edu
+                  password: SecurePass123
+                summary: Login Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+              examples:
+                LoginResponse:
+                  value:
+                    access: eyJhbGciOiJIUzI1NiIsInR5...
+                    refresh: eyJhbGciOiJIUzI1NiIsInR5...
+                    user:
+                      id: 3
+                      username: sara_student
+                      email: sara@school.edu
+                      role: student
+                  summary: Login Response
+          description: Login successful.
+        '400':
+          description: Invalid credentials.
+  /api/v1/auth/me/:
+    get:
+      operationId: auth_me_retrieve
+      description: Returns the profile of the currently authenticated user.
+      summary: Get current user profile
+      tags:
+      - Auth
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: Current user data.
+        '401':
+          description: Authentication credentials were not provided.
+  /api/v1/auth/parent-profile/:
+    post:
+      operationId: auth_parent_profile_create
+      description: |-
+        Allows a **parent** account to link itself to a student account. Once linked, the parent can view the student's grades, attendance, and notifications.
+
+        A parent can currently be linked to one child (MVP constraint).
+      summary: Link parent to a student child
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParentProfileRequest'
+            examples:
+              LinkChild:
+                value:
+                  child_id: 5
+                summary: Link Child
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ParentProfileRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ParentProfileRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParentProfile'
+          description: Profile linked successfully.
+        '400':
+          description: Validation error (e.g. child_id is not a student).
+        '403':
+          description: Only parents can use this endpoint.
+  /api/v1/auth/register/:
+    post:
+      operationId: auth_register_create
+      description: |-
+        Create a new user account. The `role` field determines what the account can access:
+
+        - **student** — enroll in courses, submit assignments, view own grades
+        - **teacher** — create courses, post assignments, grade submissions
+        - **parent** — view a linked child's grades, attendance, and notifications
+
+        Returns the created user profile (no token — call `/auth/login/` next).
+      summary: Register a new account
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            examples:
+              StudentRegistration:
+                value:
+                  username: sara_student
+                  email: sara@school.edu
+                  password: SecurePass123
+                  role: student
+                summary: Register a student account
+              TeacherRegistration:
+                value:
+                  username: mr_ahmed
+                  email: ahmed@school.edu
+                  password: TeachPass456
+                  role: teacher
+                summary: Register a teacher account
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: Account created successfully.
+        '400':
+          description: Validation error (duplicate email, invalid role, etc.).
+  /api/v1/auth/token/refresh/:
+    post:
+      operationId: auth_token_refresh_create
+      description: |-
+        Takes a refresh type JSON web token and returns an access type JSON web
+        token if the refresh token is valid.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /api/v1/courses/:
+    get:
+      operationId: courses_list
+      description: |
+        Returns courses scoped to the caller's role:
+
+        - **Teacher** → courses they own
+        - **Student** → courses they are enrolled in
+        - **Parent** → all courses (read-only overview)
+      summary: List courses
+      tags:
+      - Courses
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Course'
+          description: ''
+    post:
+      operationId: courses_create
+      description: '**Teachers only.** Creates a new course owned by the calling teacher.
+        After creation, students can enroll using the `/courses/{id}/enroll/` endpoint.'
+      summary: Create a new course
+      tags:
+      - Courses
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CourseWriteRequest'
+            examples:
+              CreateCourse:
+                value:
+                  title: Biology — Grade 10
+                  description: 'Topics: cells, genetics, ecosystems.'
+                summary: Create Course
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CourseWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CourseWriteRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+          description: Course created.
+        '400':
+          description: Validation error.
+        '403':
+          description: Only teachers can create courses.
+  /api/v1/courses/{course_pk}/assignments/:
+    get:
+      operationId: courses_assignments_list
+      description: Returns all assignments for the given course. Accessible to all
+        enrolled students and the course teacher. Results are ordered by `due_date`
+        ascending.
+      summary: List assignments for a course
+      parameters:
+      - in: path
+        name: course_pk
+        schema:
+          type: integer
+        description: ID of the parent course.
+        required: true
+      tags:
+      - Assignments
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Assignment'
+          description: ''
+    post:
+      operationId: courses_assignments_create
+      description: '**Teachers only.** Creates a new assignment under the specified
+        course. Once created, an `assignment_created` event is emitted and enrolled
+        students receive an in-app notification.'
+      summary: Create an assignment
+      parameters:
+      - in: path
+        name: course_pk
+        schema:
+          type: integer
+        description: ID of the parent course.
+        required: true
+      tags:
+      - Assignments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignmentWriteRequest'
+            examples:
+              CreateAssignment:
+                value:
+                  title: Math Quiz — Chapter 3
+                  description: Cover pages 45-60. Show all working.
+                  due_date: '2026-05-20T23:59:00Z'
+                summary: Create Assignment
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AssignmentWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AssignmentWriteRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Assignment'
+          description: Assignment created.
+        '400':
+          description: Validation error (e.g. missing due_date).
+        '403':
+          description: Only teachers can create assignments.
+        '404':
+          description: Course not found or you do not own it.
+  /api/v1/courses/{course_pk}/assignments/{assignment_pk}/submissions/:
+    get:
+      operationId: courses_assignments_submissions_list
+      description: '**Teachers only.** Returns all student submissions for the specified
+        assignment. Each submission includes the student ID, content, status (`pending`/`graded`),
+        and the timestamp.'
+      summary: List submissions for an assignment
+      parameters:
+      - in: path
+        name: assignment_pk
+        schema:
+          type: integer
+        description: ID of the parent assignment.
+        required: true
+      - in: path
+        name: course_pk
+        schema:
+          type: integer
+        description: ID of the parent course.
+        required: true
+      tags:
+      - Submissions
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Submission'
+          description: ''
+  /api/v1/courses/{course_pk}/assignments/{assignment_pk}/submissions/{id}/:
+    get:
+      operationId: courses_assignments_submissions_retrieve
+      description: Retrieve a single submission by its ID. Accessible to the owning
+        student and the course teacher.
+      summary: Get a specific submission
+      parameters:
+      - in: path
+        name: assignment_pk
+        schema:
+          type: integer
+        description: ID of the parent assignment.
+        required: true
+      - in: path
+        name: course_pk
+        schema:
+          type: integer
+        description: ID of the parent course.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Unique submission ID.
+        required: true
+      tags:
+      - Submissions
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Submission'
+          description: ''
+        '404':
+          description: Submission not found.
+  /api/v1/courses/{course_pk}/assignments/{assignment_pk}/submissions/submit/:
+    post:
+      operationId: courses_assignments_submissions_submit_create
+      description: |-
+        **Students only.** Submit work for an assignment. Rules:
+
+        - The student must be enrolled in the assignment's course.
+        - Only one submission is allowed per student per assignment (no re-submissions).
+        - After submission, a `submission_created` notification is sent to the teacher.
+      summary: Submit an assignment
+      parameters:
+      - in: path
+        name: assignment_pk
+        schema:
+          type: integer
+        description: ID of the parent assignment.
+        required: true
+      - in: path
+        name: course_pk
+        schema:
+          type: integer
+        description: ID of the parent course.
+        required: true
+      tags:
+      - Submissions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmissionCreateRequest'
+            examples:
+              SubmitAssignment:
+                value:
+                  content: The mitochondria is the powerhouse of the cell...
+                summary: Submit Assignment
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SubmissionCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SubmissionCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Submission'
+              examples:
+                SubmissionCreated:
+                  value:
+                    id: 12
+                    assignment: 3
+                    student: 7
+                    content: The mitochondria is the powerhouse of the cell...
+                    status: pending
+                    submitted_at: '2026-04-10T14:30:00Z'
+                  summary: Submission Created
+          description: Submission received.
+        '400':
+          description: Validation error.
+        '403':
+          description: Not enrolled, or not a student.
+        '404':
+          description: Assignment not found.
+        '409':
+          description: You have already submitted this assignment.
+  /api/v1/courses/{course_pk}/assignments/{id}/:
+    get:
+      operationId: courses_assignments_retrieve
+      description: Retrieve full details for a single assignment.
+      summary: Get assignment details
+      parameters:
+      - in: path
+        name: course_pk
+        schema:
+          type: integer
+        description: ID of the parent course.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Unique assignment ID.
+        required: true
+      tags:
+      - Assignments
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Assignment'
+          description: ''
+        '404':
+          description: Assignment not found.
+    put:
+      operationId: courses_assignments_update
+      description: '**Teachers only.** Partially or fully update an assignment you
+        own.'
+      summary: Update an assignment
+      parameters:
+      - in: path
+        name: course_pk
+        schema:
+          type: integer
+        description: ID of the parent course.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Unique assignment ID.
+        required: true
+      tags:
+      - Assignments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignmentWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AssignmentWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AssignmentWriteRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Assignment'
+          description: ''
+        '403':
+          description: You do not own this assignment's course.
+        '404':
+          description: Assignment not found.
+    delete:
+      operationId: courses_assignments_destroy
+      description: '**Teachers only.** Permanently deletes an assignment and all its
+        submissions.'
+      summary: Delete an assignment
+      parameters:
+      - in: path
+        name: course_pk
+        schema:
+          type: integer
+        description: ID of the parent course.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Unique assignment ID.
+        required: true
+      tags:
+      - Assignments
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '204':
+          description: Deleted successfully.
+        '403':
+          description: You do not own this assignment's course.
+        '404':
+          description: Assignment not found.
+  /api/v1/courses/{id}/:
+    get:
+      operationId: courses_retrieve
+      description: Retrieve full details for a single course by its ID.
+      summary: Get course details
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Unique course ID.
+        required: true
+      tags:
+      - Courses
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+          description: ''
+        '404':
+          description: Course not found.
+    put:
+      operationId: courses_update
+      description: '**Teachers only.** Partially or fully update a course you own.'
+      summary: Update a course
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Unique course ID.
+        required: true
+      tags:
+      - Courses
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CourseWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CourseWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CourseWriteRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+          description: ''
+        '403':
+          description: You do not own this course.
+        '404':
+          description: Course not found.
+    delete:
+      operationId: courses_destroy
+      description: '**Teachers only.** Permanently deletes a course and all its lessons
+        and assignments.'
+      summary: Delete a course
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Unique course ID.
+        required: true
+      tags:
+      - Courses
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '204':
+          description: Deleted successfully.
+        '403':
+          description: You do not own this course.
+        '404':
+          description: Course not found.
+  /api/v1/courses/{id}/enroll/:
+    post:
+      operationId: courses_enroll_create
+      description: '**Students only.** Enroll the authenticated student in the course.
+        An `enrollment_created` notification is sent to the student upon success.'
+      summary: Enroll in a course
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Unique course ID.
+        required: true
+      tags:
+      - Courses
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Enrollment'
+          description: Enrolled successfully.
+        '403':
+          description: Only students can enroll.
+        '404':
+          description: Course not found.
+        '409':
+          description: Already enrolled in this course.
+  /api/v1/courses/{id}/lessons/:
+    get:
+      operationId: courses_lessons_list
+      description: Returns all lessons for the course, ordered by their `order` field.
+      summary: List lessons in a course
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Unique course ID.
+        required: true
+      tags:
+      - Lessons
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Lesson'
+          description: ''
+    post:
+      operationId: courses_lessons_create
+      description: '**Teachers only.** Adds a new lesson to the course. Set `order`
+        to control where the lesson appears in the sequence.'
+      summary: Create a lesson
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Unique course ID.
+        required: true
+      tags:
+      - Lessons
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LessonRequest'
+            examples:
+              CreateLesson:
+                value:
+                  title: 'Chapter 1: The Cell'
+                  content: A cell is the basic unit of life...
+                  order: 1
+                summary: Create Lesson
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LessonRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LessonRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lesson'
+          description: Lesson created.
+        '400':
+          description: Validation error.
+        '403':
+          description: You do not own this course.
+  /api/v1/courses/{id}/students/:
+    get:
+      operationId: courses_students_list
+      description: '**Teachers only.** Returns all students currently enrolled in
+        this course.'
+      summary: List enrolled students
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Unique course ID.
+        required: true
+      tags:
+      - Courses
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Enrollment'
+          description: ''
+  /api/v1/grades/:
+    get:
+      operationId: grades_list
+      description: |-
+        Query grades based on the caller's role:
+
+        | Role | Behavior |
+        |---|---|
+        | **Student** | Returns own grades (query params ignored) |
+        | **Teacher** | Use `?student=<id>` or `?course=<id>` to filter |
+        | **Parent** | Returns their linked child's grades |
+
+        Results include score, feedback, and the grading timestamp.
+      summary: List grades
+      parameters:
+      - in: query
+        name: course
+        schema:
+          type: integer
+        description: Filter grades by course ID. (Teacher use only)
+      - in: query
+        name: student
+        schema:
+          type: integer
+        description: Filter grades by student ID. (Teacher use only)
+      tags:
+      - Grades
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Grade'
+          description: ''
+  /api/v1/notifications/:
+    get:
+      operationId: notifications_retrieve
+      description: |-
+        Returns all in-app notifications for the authenticated user, ordered newest first.
+
+        The response includes an `unread_count` summary and the `results` list.
+
+        **Notification event types:**
+        | Event Type | Triggered By |
+        |---|---|
+        | `assignment_created` | Teacher posts a new assignment |
+        | `submission_created` | Student submits an assignment |
+        | `submission_graded`  | Teacher grades a submission |
+        | `attendance_marked`  | Student marked absent |
+        | `enrollment_created` | Student enrolls in a course |
+      summary: List notifications
+      tags:
+      - Notifications
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationListResponse'
+              examples:
+                NotificationListResponse:
+                  value:
+                    unread_count: 2
+                    results:
+                    - id: 10
+                      title: Your submission was graded
+                      body: 'Your submission for ''Lab Report'' in ''Biology'' has
+                        been graded. Score: 87/100.'
+                      event_type: submission_graded
+                      is_read: false
+                      created_at: '2026-04-10T15:00:00Z'
+                    - id: 9
+                      title: 'New Assignment: Math Quiz'
+                      body: 'A new assignment has been posted in ''Mathematics''.
+                        Due: 2026-05-01.'
+                      event_type: assignment_created
+                      is_read: true
+                      created_at: '2026-04-08T09:00:00Z'
+                  summary: Notification List Response
+          description: Notification inbox.
+  /api/v1/notifications/{id}/read/:
+    post:
+      operationId: notifications_read_create
+      description: Mark a single notification as read. The notification must belong
+        to the authenticated user.
+      summary: Mark a notification as read
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Notifications
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+          description: Notification marked as read.
+        '403':
+          description: This notification does not belong to you.
+        '404':
+          description: Notification not found.
+  /api/v1/notifications/read-all/:
+    post:
+      operationId: notifications_read_all_create
+      description: Marks every unread notification for the authenticated user as read
+        in a single call.
+      summary: Mark all notifications as read
+      tags:
+      - Notifications
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarkAllReadResponse'
+              examples:
+                MarkAllReadResponse:
+                  value:
+                    marked_read: 4
+                  summary: Mark All Read Response
+          description: All notifications marked as read.
+  /api/v1/submissions/{submission_pk}/grade/:
+    post:
+      operationId: submissions_grade_create
+      description: |-
+        **Teachers only.** Assign a numeric score and optional feedback to a student submission.
+
+        **Rules:**
+        - The submission must belong to a course the teacher owns.
+        - A submission can only be graded once (raises `409` if already graded).
+
+        **Side effects on success:**
+        - Submission `status` changes to `graded`.
+        - `submission_graded` event is emitted.
+        - Student receives an in-app notification.
+        - Any linked parent also receives a notification.
+      summary: Grade a submission
+      parameters:
+      - in: path
+        name: submission_pk
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Grades
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GradeWriteRequest'
+            examples:
+              GradeSubmission:
+                value:
+                  score: 87.5
+                  feedback: Good analysis, but the conclusion needs more detail.
+                summary: Grade Submission
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GradeWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GradeWriteRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Grade'
+              examples:
+                GradeResponse:
+                  value:
+                    id: 5
+                    submission: 12
+                    score: '87.50'
+                    feedback: Good analysis, but the conclusion needs more detail.
+                    graded_by: 2
+                    graded_at: '2026-04-10T15:00:00Z'
+                  summary: Grade Response
+          description: Grade assigned successfully.
+        '400':
+          description: Validation error (e.g. score out of range).
+        '403':
+          description: You do not own this submission's course.
+        '404':
+          description: Submission not found.
+        '409':
+          description: This submission is already graded.
+components:
+  schemas:
+    Assignment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+          description: Unique assignment ID.
+        course:
+          type: integer
+          readOnly: true
+          description: ID of the parent course.
+        title:
+          type: string
+          description: Assignment title.
+        description:
+          type: string
+          description: Full instructions for the assignment.
+        due_date:
+          type: string
+          format: date-time
+          description: Submission deadline (ISO-8601). Students cannot submit after
+            this time.
+        created_by:
+          type: integer
+          readOnly: true
+          description: Teacher who created the assignment.
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: Creation timestamp.
+      required:
+      - course
+      - created_at
+      - created_by
+      - due_date
+      - id
+      - title
+    AssignmentWriteRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          description: Short descriptive title for the assignment.
+          maxLength: 255
+        description:
+          type: string
+          description: Detailed instructions, rubric, or references.
+        due_date:
+          type: string
+          format: date-time
+          description: 'Deadline in ISO-8601 format (UTC). Example: 2026-05-01T23:59:00Z'
+      required:
+      - due_date
+      - title
+    AttendanceRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+          description: Unique attendance record ID.
+        course:
+          type: integer
+          readOnly: true
+          description: Course ID.
+        student:
+          type: integer
+          readOnly: true
+          description: Student user ID.
+        date:
+          type: string
+          format: date
+          description: Attendance date (YYYY-MM-DD).
+        status:
+          allOf:
+          - $ref: '#/components/schemas/AttendanceStatusEnum'
+          description: |-
+            Attendance status: `present`, `absent`, or `late`.
+
+            * `present` - Present
+            * `absent` - Absent
+            * `late` - Late
+        marked_by:
+          type: integer
+          readOnly: true
+          description: Teacher who marked the attendance.
+      required:
+      - course
+      - date
+      - id
+      - marked_by
+      - status
+      - student
+    AttendanceRecordInputRequest:
+      type: object
+      properties:
+        student_id:
+          type: integer
+          description: ID of the student.
+        status:
+          allOf:
+          - $ref: '#/components/schemas/AttendanceStatusEnum'
+          description: |-
+            Attendance status for this student.
+
+            * `present` - Present
+            * `absent` - Absent
+            * `late` - Late
+      required:
+      - status
+      - student_id
+    AttendanceStatusEnum:
+      enum:
+      - present
+      - absent
+      - late
+      type: string
+      description: |-
+        * `present` - Present
+        * `absent` - Absent
+        * `late` - Late
+    Course:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+          description: Unique course ID.
+        title:
+          type: string
+          description: Course title.
+        description:
+          type: string
+          description: Course overview shown to students.
+        teacher:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+          description: Teacher who owns the course.
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: Course creation timestamp.
+      required:
+      - created_at
+      - id
+      - teacher
+      - title
+    CourseWriteRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          description: Course title (required).
+          maxLength: 255
+        description:
+          type: string
+          description: Optional course description.
+      required:
+      - title
+    Enrollment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+          description: Enrollment record ID.
+        student:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+          description: The enrolled student.
+        enrolled_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: Enrollment timestamp.
+      required:
+      - enrolled_at
+      - id
+      - student
+    Grade:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+          description: Unique grade record ID.
+        submission:
+          type: integer
+          readOnly: true
+          description: ID of the graded submission.
+        score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          description: Numeric score between 0.00 and 100.00.
+        feedback:
+          type: string
+          description: Optional teacher comment or feedback for the student.
+        graded_by:
+          type: integer
+          readOnly: true
+          description: ID of the teacher who graded the submission.
+        graded_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: Timestamp when the grade was assigned.
+      required:
+      - feedback
+      - graded_at
+      - graded_by
+      - id
+      - score
+      - submission
+    GradeWriteRequest:
+      type: object
+      properties:
+        score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          description: Score to assign (0.00 – 100.00).
+        feedback:
+          type: string
+          default: ''
+          description: Optional written feedback for the student.
+      required:
+      - score
+    Lesson:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+          description: Unique lesson ID.
+        title:
+          type: string
+          description: Lesson title.
+          maxLength: 255
+        content:
+          type: string
+          description: Full lesson body (supports plain text or Markdown).
+        order:
+          type: integer
+          default: 0
+          description: Display order within the course. Lower numbers appear first.
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: Lesson creation timestamp.
+      required:
+      - content
+      - created_at
+      - id
+      - title
+    LessonRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          description: Lesson title.
+          maxLength: 255
+        content:
+          type: string
+          minLength: 1
+          description: Full lesson body (supports plain text or Markdown).
+        order:
+          type: integer
+          default: 0
+          description: Display order within the course. Lower numbers appear first.
+      required:
+      - content
+      - title
+    LoginRequest:
+      type: object
+      description: Input schema for the login endpoint.
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+          description: Registered email address.
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+          description: Account password.
+      required:
+      - email
+      - password
+    LoginResponse:
+      type: object
+      description: Response schema returned by the login endpoint.
+      properties:
+        access:
+          type: string
+          description: 'JWT access token. Valid for 60 minutes. Send as `Authorization:
+            Bearer <token>`.'
+        refresh:
+          type: string
+          description: JWT refresh token. Valid for 7 days. Use to obtain a new access
+            token.
+        user:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          description: Authenticated user details.
+      required:
+      - access
+      - refresh
+      - user
+    MarkAllReadResponse:
+      type: object
+      description: Response for POST /notifications/read-all/
+      properties:
+        marked_read:
+          type: integer
+          description: Number of notifications that were marked as read by this operation.
+      required:
+      - marked_read
+    MarkAttendanceRequest:
+      type: object
+      properties:
+        course:
+          type: integer
+          description: ID of the course for which attendance is being marked.
+        date:
+          type: string
+          format: date
+          description: Date of the class session (YYYY-MM-DD).
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttendanceRecordInputRequest'
+          description: List of per-student attendance entries. One entry per enrolled
+            student.
+      required:
+      - course
+      - date
+      - records
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+          description: Unique notification ID.
+        title:
+          type: string
+          readOnly: true
+          description: Short notification headline.
+        body:
+          type: string
+          readOnly: true
+          description: Full notification message body.
+        event_type:
+          type: string
+          readOnly: true
+          description: 'The domain event that triggered this notification. One of:
+            `assignment_created`, `submission_created`, `submission_graded`, `attendance_marked`,
+            `enrollment_created`.'
+        is_read:
+          type: boolean
+          readOnly: true
+          description: Whether the user has read this notification.
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: Timestamp when the notification was generated.
+      required:
+      - body
+      - created_at
+      - event_type
+      - id
+      - is_read
+      - title
+    NotificationListResponse:
+      type: object
+      description: Response envelope for GET /notifications/
+      properties:
+        unread_count:
+          type: integer
+          description: Total number of unread notifications for the current user.
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+          description: Ordered list of notifications (newest first).
+      required:
+      - results
+      - unread_count
+    ParentProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        parent:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+          description: The parent user (set automatically).
+        child:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+          description: The linked student user.
+      required:
+      - child
+      - id
+      - parent
+    ParentProfileRequest:
+      type: object
+      properties:
+        child_id:
+          type: integer
+          writeOnly: true
+          description: ID of the student to link to this parent account.
+      required:
+      - child_id
+    RegisterRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+          description: Unique username (letters, digits, @/./+/-/_ only).
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          minLength: 1
+          description: Valid email address. Must be unique across the platform.
+        password:
+          type: string
+          writeOnly: true
+          minLength: 8
+          description: Password (minimum 8 characters).
+        role:
+          allOf:
+          - $ref: '#/components/schemas/RoleEnum'
+          description: |-
+            User role. Determines what the account can access.
+
+            * `student` - Student
+            * `teacher` - Teacher
+            * `parent` - Parent
+      required:
+      - email
+      - password
+      - role
+      - username
+    RoleEnum:
+      enum:
+      - student
+      - teacher
+      - parent
+      type: string
+      description: |-
+        * `student` - Student
+        * `teacher` - Teacher
+        * `parent` - Parent
+    Submission:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+          description: Unique submission ID.
+        assignment:
+          type: integer
+          readOnly: true
+          description: ID of the assignment this submission belongs to.
+        student:
+          type: integer
+          readOnly: true
+          description: ID of the student who submitted.
+        content:
+          type: string
+          description: The student's submitted work (text answer, link, or reference).
+        status:
+          allOf:
+          - $ref: '#/components/schemas/SubmissionStatusEnum'
+          readOnly: true
+          description: |-
+            Lifecycle status. `pending` = awaiting grade, `graded` = teacher has graded.
+
+            * `pending` - Pending
+            * `graded` - Graded
+        submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: Timestamp when the submission was received.
+      required:
+      - assignment
+      - content
+      - id
+      - status
+      - student
+      - submitted_at
+    SubmissionCreateRequest:
+      type: object
+      properties:
+        content:
+          type: string
+          minLength: 1
+          description: The student's answer or work. Plain text, a URL, or structured
+            content.
+      required:
+      - content
+    SubmissionStatusEnum:
+      enum:
+      - pending
+      - graded
+      type: string
+      description: |-
+        * `pending` - Pending
+        * `graded` - Graded
+    TokenRefresh:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+      required:
+      - access
+      - refresh
+    TokenRefreshRequest:
+      type: object
+      properties:
+        refresh:
+          type: string
+          minLength: 1
+      required:
+      - refresh
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+          description: Unique user ID.
+        username:
+          type: string
+          description: Unique username.
+        email:
+          type: string
+          format: email
+          description: User's email address.
+        role:
+          type: string
+          description: 'Account role: student | teacher | parent.'
+        first_name:
+          type: string
+          description: First name (optional).
+        last_name:
+          type: string
+          description: Last name (optional).
+        date_joined:
+          type: string
+          format: date-time
+          readOnly: true
+          description: ISO-8601 timestamp of registration.
+      required:
+      - date_joined
+      - email
+      - id
+      - role
+      - username
+    UserRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+          description: Unique username.
+        email:
+          type: string
+          format: email
+          minLength: 1
+          description: User's email address.
+        role:
+          type: string
+          minLength: 1
+          description: 'Account role: student | teacher | parent.'
+        first_name:
+          type: string
+          minLength: 1
+          description: First name (optional).
+        last_name:
+          type: string
+          minLength: 1
+          description: Last name (optional).
+      required:
+      - email
+      - role
+      - username
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Enter your JWT access token. Obtain it from `POST /api/v1/auth/login/`.
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+servers:
+- url: http://localhost:8000
+  description: Local development server
+tags:
+- name: Auth
+  description: Register, login, token refresh, profile
+- name: Courses
+  description: Course management and enrollment
+- name: Lessons
+  description: Course lesson content
+- name: Assignments
+  description: Assignments within courses
+- name: Submissions
+  description: Student assignment submissions
+- name: Grades
+  description: Submission grading and grade queries
+- name: Attendance
+  description: Daily attendance tracking
+- name: Notifications
+  description: In-app notification inbox

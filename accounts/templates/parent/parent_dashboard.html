@@ -1,0 +1,23 @@
+<h1>Parent Dashboard</h1>
+
+<a href="/add-student/">Add Student</a>
+
+<h2>My Students</h2>
+
+<ul>
+
+{% for student in students %}
+
+<li>
+{{ student.name }} - Grade {{ student.grade }}
+</li>
+
+{% empty %}
+
+<li>No students yet</li>
+
+{% endfor %}
+
+</ul>
+
+<a href="/logout/">Logout</a>

@@ -1,0 +1,19 @@
+<h2>Login</h2>
+
+{% if role == "parent" %}
+<h3>Parent Login</h3>
+{% elif role == "student" %}
+<h3>Student Login</h3>
+{% endif %}
+
+<form method="POST">
+
+    {% csrf_token %}
+
+    {{ form.as_p }}
+
+    <button type="submit">
+        Login
+    </button>
+
+</form>
