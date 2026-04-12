@@ -41,7 +41,6 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
-    'corsheaders',
     'django_filters',
     'drf_spectacular',
     # Local apps
@@ -55,6 +54,7 @@ INSTALLED_APPS = [
     'grades.apps.GradesConfig',
     'attendance.apps.AttendanceConfig',
     'notifications.apps.NotificationsConfig',
+    'corsheaders',
 ]
 
 MIDDLEWARE = [
