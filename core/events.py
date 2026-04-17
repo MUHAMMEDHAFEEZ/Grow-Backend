@@ -28,7 +28,9 @@ class EventBus:
     def subscribe(event_name: str, handler: Callable[[dict[str, Any]], None]) -> None:
         """Register a handler for an event. Called once at startup."""
         _registry[event_name].append(handler)
-        logger.debug("EventBus: registered handler %s for '%s'", handler.__name__, event_name)
+        logger.debug(
+            "EventBus: registered handler %s for '%s'", handler.__name__, event_name
+        )
 
     @staticmethod
     def publish(event_name: str, payload: dict[str, Any]) -> None:
@@ -57,10 +59,12 @@ class EventBus:
 # Event name constants — import these instead of raw strings
 # ---------------------------------------------------------------------------
 
+
 class Events:
-    ASSIGNMENT_CREATED  = "assignment_created"
-    SUBMISSION_CREATED  = "submission_created"
-    SUBMISSION_GRADED   = "submission_graded"
-    ATTENDANCE_MARKED   = "attendance_marked"
-    ENROLLMENT_CREATED  = "enrollment_created"
+    ASSIGNMENT_CREATED = "assignment_created"
+    SUBMISSION_CREATED = "submission_created"
+    SUBMISSION_GRADED = "submission_graded"
+    ATTENDANCE_MARKED = "attendance_marked"
+    ENROLLMENT_CREATED = "enrollment_created"
     SCHOOL_MEMBER_ADDED = "school_member_added"
+    LESSON_JOINED = "lesson_joined"

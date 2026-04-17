@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 
 class Course(models.Model):
@@ -21,7 +22,9 @@ class Course(models.Model):
 
 
 class Enrollment(models.Model):
-    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="enrollments")
+    course = models.ForeignKey(
+        Course, on_delete=models.CASCADE, related_name="enrollments"
+    )
     student = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -43,6 +46,12 @@ class Lesson(models.Model):
     title = models.CharField(max_length=255)
     content = models.TextField()
     order = models.PositiveIntegerField(default=0)
+    start_time = models.DateTimeField(
+        null=True, blank=True, help_text="Scheduled lesson start time"
+    )
+    end_time = models.DateTimeField(
+        null=True, blank=True, help_text="Scheduled lesson end time"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -213,3 +213,6 @@ __marimo__/
 db.sqlite3
 specs/
 Claude.md
+.specify
+.opencode
+uv-new-project
