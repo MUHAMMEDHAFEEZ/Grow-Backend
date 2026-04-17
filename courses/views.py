@@ -28,8 +28,7 @@ from .serializers import (
     LessonAttendanceSummarySerializer,
     LessonSerializer,
 )
-
-
+#hafeez 
 _COURSE_PK_PARAM = OpenApiParameter(
     name="id",
     type=OpenApiTypes.INT,
