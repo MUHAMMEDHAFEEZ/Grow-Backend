@@ -14,8 +14,10 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
+from assignments.views import AssignmentViewSet
 
 from core.permissions import IsStudent, IsTeacher
+from submissions.views import SubmissionViewSet
 
 from . import selectors, services
 from .serializers import (
@@ -36,7 +38,7 @@ _COURSE_PK_PARAM = OpenApiParameter(
 )
 
 
-class CourseViewSet(ViewSet):
+class CourseViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_permissions(self):
