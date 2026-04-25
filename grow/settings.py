@@ -9,6 +9,7 @@ https://docs.djangoproject.com/en/6.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
+
 import os
 from pathlib import Path
 
@@ -20,85 +21,86 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-q45a-b97emvockz*0d50s!rqpeu2=+tk(xx5lyzrfosd+_v89='
+SECRET_KEY = "django-insecure-q45a-b97emvockz*0d50s!rqpeu2=+tk(xx5lyzrfosd+_v89="
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
-#"edugrow.pythonanywhere.com", "localhost", "127.0.0.1",
-ALLOWED_HOSTS = ['*']
+# "edugrow.pythonanywhere.com", "localhost", "127.0.0.1",
+ALLOWED_HOSTS = ["*"]
 
 
 #  ====================== Application definition ======================
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
     # Third-party
-    'rest_framework',
-    'rest_framework_simplejwt',
-    'rest_framework_simplejwt.token_blacklist',
-    'corsheaders',
-    'django_filters',
-    'drf_spectacular',
+    "rest_framework",
+    "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
+    "corsheaders",
+    "django_filters",
+    "drf_spectacular",
     # Local apps
-    'accounts.apps.AccountsConfig',
-    'students.apps.StudentsConfig',
-    'schools.apps.SchoolsConfig',
-    'core.apps.CoreConfig',
-    'courses.apps.CoursesConfig',
-    'assignments.apps.AssignmentsConfig',
-    'submissions.apps.SubmissionsConfig',
-    'grades.apps.GradesConfig',
-    'attendance.apps.AttendanceConfig',
-    'notifications.apps.NotificationsConfig',
-    
+    "accounts.apps.AccountsConfig",
+    "students.apps.StudentsConfig",
+    "schools.apps.SchoolsConfig",
+    "core.apps.CoreConfig",
+    "courses.apps.CoursesConfig",
+    "assignments.apps.AssignmentsConfig",
+    "submissions.apps.SubmissionsConfig",
+    "grades.apps.GradesConfig",
+    "attendance.apps.AttendanceConfig",
+    "notifications.apps.NotificationsConfig",
+    "study_sessions.apps.SessionsConfig",
+    "xp.apps.XpConfig",
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "corsheaders.middleware.CorsMiddleware",
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = 'grow.urls'
+ROOT_URLCONF = "grow.urls"
 
 
 # ====================== Templates ======================
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [BASE_DIR / "templates"],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
             ],
         },
     },
 ]
 
 #  ====================== WSGI ======================
-WSGI_APPLICATION = 'grow.wsgi.application'
+WSGI_APPLICATION = "grow.wsgi.application"
 
 
 #  ====================== Database ======================
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
     }
 }
 
@@ -114,34 +116,31 @@ DATABASES = {
 # }
 
 
-
-
-#  ====================== Password validation ====================== 
+#  ====================== Password validation ======================
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
-    
 ]
 
 
-#  ====================== Internationalization  ====================== 
+#  ====================== Internationalization  ======================
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = "UTC"
 
 USE_I18N = True
 
@@ -155,9 +154,9 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # ====================== Enrollment Code Settings ======================
-ENROLLMENT_CODE_INITIAL_POOL        = 50    # codes auto-generated per school creation
-ENROLLMENT_RATE_LIMIT_MAX_ATTEMPTS  = 10    # failed attempts before lockout
-ENROLLMENT_RATE_LIMIT_WINDOW_SECONDS  = 3600  # 1-hour sliding window
+ENROLLMENT_CODE_INITIAL_POOL = 50  # codes auto-generated per school creation
+ENROLLMENT_RATE_LIMIT_MAX_ATTEMPTS = 10  # failed attempts before lockout
+ENROLLMENT_RATE_LIMIT_WINDOW_SECONDS = 3600  # 1-hour sliding window
 ENROLLMENT_RATE_LIMIT_LOCKOUT_SECONDS = 3600  # 1-hour lockout duration
 
 
@@ -170,95 +169,99 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 DEFAULT_FROM_EMAIL = "noreply@grow-platform.io"
 
 
-AUTH_USER_MODEL = 'accounts.User'
+AUTH_USER_MODEL = "accounts.User"
 
 CORS_ALLOW_ALL_ORIGINS = True
 
 
 # ====================== REST Framework Settings ======================
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
-    'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated',
-    ),
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 20,
-    'DEFAULT_FILTER_BACKENDS': [
-        'django_filters.rest_framework.DjangoFilterBackend',
-        'rest_framework.filters.SearchFilter',
-        'rest_framework.filters.OrderingFilter',
+    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 20,
+    "DEFAULT_FILTER_BACKENDS": [
+        "django_filters.rest_framework.DjangoFilterBackend",
+        "rest_framework.filters.SearchFilter",
+        "rest_framework.filters.OrderingFilter",
     ],
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
 # ====================== drf-spectacular (OpenAPI / Swagger) ======================
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'Grow Educational Platform API',
-    'DESCRIPTION': (
-        '**Grow** is a modular educational platform for students, teachers, and parents.\n\n'
-        '## Authentication\n'
-        'All protected endpoints require a JWT Bearer token.\n'
-        '1. Call `POST /api/v1/auth/login/` with your email and password.\n'
-        '2. Copy the `access` token from the response.\n'
-        '3. Click **Authorize** above and enter: `Bearer <your_token>`.\n\n'
-        '## Roles\n'
-        '| Role | Capabilities |\n'
-        '|---|---|\n'
-        '| `teacher` | Manage courses, assignments, grade submissions, mark attendance |\n'
-        '| `student` | Enroll in courses, submit assignments, view own grades |\n'
-        '| `parent`  | View child\'s grades, attendance, and notifications |'
+    "TITLE": "Grow Educational Platform API",
+    "DESCRIPTION": (
+        "**Grow** is a modular educational platform for students, teachers, and parents.\n\n"
+        "## Authentication\n"
+        "All protected endpoints require a JWT Bearer token.\n"
+        "1. Call `POST /api/v1/auth/login/` with your email and password.\n"
+        "2. Copy the `access` token from the response.\n"
+        "3. Click **Authorize** above and enter: `Bearer <your_token>`.\n\n"
+        "## Roles\n"
+        "| Role | Capabilities |\n"
+        "|---|---|\n"
+        "| `teacher` | Manage courses, assignments, grade submissions, mark attendance |\n"
+        "| `student` | Enroll in courses, submit assignments, view own grades |\n"
+        "| `parent`  | View child's grades, attendance, and notifications |"
     ),
-    'VERSION': '1.0.0',
-    'SERVE_INCLUDE_SCHEMA': False,
-    'CONTACT': {'name': 'Grow Backend Team'},
-    'LICENSE': {'name': 'Proprietary'},
-    'TAGS': [
-        {'name': 'Auth',          'description': 'Register, login, token refresh, profile'},
-        {'name': 'Courses',       'description': 'Course management and enrollment'},
-        {'name': 'Lessons',       'description': 'Course lesson content'},
-        {'name': 'Assignments',   'description': 'Assignments within courses'},
-        {'name': 'Submissions',   'description': 'Student assignment submissions'},
-        {'name': 'Grades',        'description': 'Submission grading and grade queries'},
-        {'name': 'Attendance',    'description': 'Daily attendance tracking'},
-        {'name': 'Notifications', 'description': 'In-app notification inbox'},
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "CONTACT": {"name": "Grow Backend Team"},
+    "LICENSE": {"name": "Proprietary"},
+    "TAGS": [
+        {"name": "Auth", "description": "Register, login, token refresh, profile"},
+        {"name": "Courses", "description": "Course management and enrollment"},
+        {"name": "Lessons", "description": "Course lesson content"},
+        {"name": "Assignments", "description": "Assignments within courses"},
+        {"name": "Submissions", "description": "Student assignment submissions"},
+        {"name": "Grades", "description": "Submission grading and grade queries"},
+        {"name": "Attendance", "description": "Daily attendance tracking"},
+        {"name": "Notifications", "description": "In-app notification inbox"},
     ],
-    'SECURITY': [{'BearerAuth': []}],
-    'COMPONENT_SPLIT_REQUEST': True,
-    'SCHEMA_PATH_PREFIX': r'/api/v1/',
-    'SERVERS': [ {'url': 'https://edugrow.pythonanywhere.com', 'description': 'Production server'}, {'url': 'http://localhost:8000', 'description': 'Local development server'} ],
+    "SECURITY": [{"BearerAuth": []}],
+    "COMPONENT_SPLIT_REQUEST": True,
+    "SCHEMA_PATH_PREFIX": r"/api/v1/",
+    "SERVERS": [
+        {
+            "url": "https://edugrow.pythonanywhere.com",
+            "description": "Production server",
+        },
+        {"url": "http://localhost:8000", "description": "Local development server"},
+    ],
     # JWT security scheme shown in Swagger UI "Authorize" button
-    'APPEND_COMPONENTS': {
-        'securitySchemes': {
-            'BearerAuth': {
-                'type': 'http',
-                'scheme': 'bearer',
-                'bearerFormat': 'JWT',
-                'description': 'Enter your JWT access token. Obtain it from `POST /api/v1/auth/login/`.',
+    "APPEND_COMPONENTS": {
+        "securitySchemes": {
+            "BearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+                "description": "Enter your JWT access token. Obtain it from `POST /api/v1/auth/login/`.",
             }
         }
     },
     # Resolve enum naming collision for "status" fields across apps
-    'ENUM_NAME_OVERRIDES': {
-        'SubmissionStatusEnum': 'submissions.models.Submission.Status',
-        'AttendanceStatusEnum': 'attendance.models.AttendanceRecord.Status',
+    "ENUM_NAME_OVERRIDES": {
+        "SubmissionStatusEnum": "submissions.models.Submission.Status",
+        "AttendanceStatusEnum": "attendance.models.AttendanceRecord.Status",
     },
     # Exclude legacy views (students/schools) from schema
-    'PREPROCESSING_HOOKS': [
-        'grow.schema_hooks.exclude_legacy_paths',
+    "PREPROCESSING_HOOKS": [
+        "grow.schema_hooks.exclude_legacy_paths",
     ],
     # Do not raise on schema warnings during generation
-    'DISABLE_ERRORS_AND_WARNINGS': False,
+    "DISABLE_ERRORS_AND_WARNINGS": False,
 }
 
 # ====================== JWT Settings ======================
 from datetime import timedelta
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),      # التوكن ينتهي بعد ساعة
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),         # Refresh Token ينتهي بعد أسبوع
-    'ROTATE_REFRESH_TOKENS': True,
-    'BLACKLIST_AFTER_ROTATION': True,
-    'AUTH_HEADER_TYPES': ('Bearer',),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),  # التوكن ينتهي بعد ساعة
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),  # Refresh Token ينتهي بعد أسبوع
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "AUTH_HEADER_TYPES": ("Bearer",),
 }
