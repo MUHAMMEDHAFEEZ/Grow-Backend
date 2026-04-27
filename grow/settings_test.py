@@ -1,6 +1,7 @@
 """
 settings_test.py — Overrides for test runner (uses SQLite, no external DB needed).
 """
+
 from .settings import *  # noqa: F401, F403
 
 DATABASES = {
