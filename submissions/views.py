@@ -134,3 +134,22 @@ class SubmissionViewSet(ViewSet):
             content=serializer.validated_data["content"],
         )
         return Response(SubmissionSerializer(submission).data, status=status.HTTP_201_CREATED)
+
+    @extend_schema(
+        tags=["Submissions"],
+        summary="Grade a submission",
+        parameters=[_COURSE_PK_PARAM, _ASSIGNMENT_PK_PARAM, _SUBMISSION_PK_PARAM],
+        description=(
+            "**Teachers only.** Mark a submission as graded. "
+            "Only the teacher who owns the course can grade submissions."
+        ),
+        responses={
+            200: SubmissionSerializer,
+            403: OpenApiResponse(description="Not a teacher, or you do not own this course."),
+            404: OpenApiResponse(description="Submission not found."),
+        },
+    )
+    @action(detail=True, methods=["post"], url_path="grade")
+    def grade(self, request: Request, pk: int = None, assignment_pk: int = None, course_pk: int = None) -> Response:
+        submission = services.grade_submission(teacher=request.user, submission_id=pk)
+        return Response(SubmissionSerializer(submission).data)

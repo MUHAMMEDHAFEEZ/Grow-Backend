@@ -58,6 +58,8 @@ INSTALLED_APPS = [
     "notifications.apps.NotificationsConfig",
     "study_sessions.apps.SessionsConfig",
     "xp.apps.XpConfig",
+    "parent.apps.ParentConfig",
+    "ai.apps.AiConfig",
 ]
 
 MIDDLEWARE = [

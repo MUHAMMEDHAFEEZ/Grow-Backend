@@ -21,6 +21,10 @@ def _due():
     return timezone.make_aware(datetime.datetime(2027, 1, 1))
 
 
+def _past_due():
+    return timezone.make_aware(datetime.datetime(2020, 1, 1))
+
+
 class SubmissionServiceTest(TestCase):
     def setUp(self):
         EventBus.clear()
@@ -78,3 +82,47 @@ class SubmissionServiceTest(TestCase):
         self.assertEqual(received[0]["student_id"], self.student.pk)
         self.assertEqual(received[0]["teacher_id"], self.teacher.pk)
         self.assertEqual(received[0]["assignment_id"], self.assignment.pk)
+
+    def test_submit_past_due_date_raises(self):
+        from assignments.models import Assignment
+        past_assignment = Assignment.objects.create(
+            course=self.course,
+            title="Overdue",
+            description="Too late",
+            due_date=_past_due(),
+            created_by=self.teacher,
+        )
+        with self.assertRaises(PermissionDenied):
+            services.submit_assignment(
+                student=self.student, assignment_id=past_assignment.pk, content="Late"
+            )
+
+    def test_submit_content_too_long_raises(self):
+        from rest_framework import serializers
+        from submissions.serializers import SubmissionCreateSerializer
+        long_content = "x" * 10001
+        with self.assertRaises(serializers.ValidationError):
+            serializer = SubmissionCreateSerializer(data={"content": long_content})
+            serializer.is_valid(raise_exception=True)
+
+    def test_grade_submission(self):
+        sub = services.submit_assignment(
+            student=self.student, assignment_id=self.assignment.pk, content="My answer"
+        )
+        self.assertEqual(sub.status, Submission.Status.PENDING)
+        graded = services.grade_submission(
+            teacher=self.teacher, submission_id=sub.pk
+        )
+        self.assertEqual(graded.status, Submission.Status.GRADED)
+
+    def test_grade_submission_wrong_teacher_raises(self):
+        sub = services.submit_assignment(
+            student=self.student, assignment_id=self.assignment.pk, content="My answer"
+        )
+        other_teacher = User.objects.create_user(
+            username="teacher2", email="t2@grow.io", password="pass", role="teacher"
+        )
+        with self.assertRaises(PermissionDenied):
+            services.grade_submission(
+                teacher=other_teacher, submission_id=sub.pk
+            )
