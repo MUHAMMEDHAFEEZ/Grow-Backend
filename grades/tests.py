@@ -14,6 +14,7 @@ from courses import services as course_services
 from assignments.services import create_assignment
 from submissions.services import submit_assignment
 from grades.services import grade_submission
+from grades import selectors
 from grades.models import Grade
 from submissions.models import Submission
 
@@ -69,3 +70,14 @@ class GradeServiceTest(TestCase):
         )
         with self.assertRaises(PermissionDenied):
             grade_submission(teacher=other, submission_id=self.submission.pk, score=50)
+
+    def test_student_gpa_calculation(self):
+        grade_submission(teacher=self.teacher, submission_id=self.submission.pk, score=90)
+        gpa = selectors.get_student_gpa(self.student.pk)
+        self.assertEqual(gpa["gpa"], 90.0)
+        self.assertEqual(gpa["graded_count"], 1)
+
+    def test_student_gpa_no_grades(self):
+        gpa = selectors.get_student_gpa(self.student.pk)
+        self.assertEqual(gpa["gpa"], 0.0)
+        self.assertEqual(gpa["graded_count"], 0)

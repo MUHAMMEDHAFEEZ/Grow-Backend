@@ -41,3 +41,9 @@ class GradeWriteSerializer(serializers.Serializer):
         default="",
         help_text="Optional written feedback for the student.",
     )
+
+
+class GPASerializer(serializers.Serializer):
+    student_id = serializers.IntegerField()
+    gpa = serializers.FloatField()
+    graded_count = serializers.IntegerField()

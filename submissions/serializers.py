@@ -31,6 +31,7 @@ class SubmissionSerializer(serializers.ModelSerializer):
 class SubmissionCreateSerializer(serializers.ModelSerializer):
     content = serializers.CharField(
         help_text="The student's answer or work. Plain text, a URL, or structured content.",
+        max_length=10000,
     )
 
     class Meta:

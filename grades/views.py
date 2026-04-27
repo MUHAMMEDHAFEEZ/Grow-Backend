@@ -8,7 +8,7 @@ from rest_framework.views import APIView
 from accounts.selectors import get_child_for_parent
 from core.permissions import IsTeacher
 from . import selectors, services
-from .serializers import GradeSerializer, GradeWriteSerializer
+from .serializers import GradeSerializer, GradeWriteSerializer, GPASerializer
 
 
 class GradeSubmissionView(APIView):
@@ -121,3 +121,42 @@ class GradeListView(APIView):
             grades = []
 
         return Response(GradeSerializer(grades, many=True).data)
+
+
+class StudentGPAView(APIView):
+    """GET /grades/student/<student_id>/gpa/"""
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Grades"],
+        summary="Get student GPA",
+        description=(
+            "Returns the grade point average for a student.\n\n"
+            "**Access:**\n"
+            "- Students can view their own GPA\n"
+            "- Teachers can view any student's GPA\n"
+            "- Parents can view their child's GPA"
+        ),
+        responses={
+            200: GPASerializer,
+            403: OpenApiResponse(description="Not authorized to view this student's GPA."),
+        },
+    )
+    def get(self, request: Request, student_id: int) -> Response:
+        user = request.user
+
+        if user.is_student and user.pk != student_id:
+            return Response(
+                {"error": "You can only view your own GPA."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if user.is_parent:
+            child = get_child_for_parent(user)
+            if child and child.pk != student_id:
+                return Response(
+                    {"error": "You can only view your child's GPA."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+        gpa_data = selectors.get_student_gpa(student_id)
+        return Response(GPASerializer(gpa_data).data)
