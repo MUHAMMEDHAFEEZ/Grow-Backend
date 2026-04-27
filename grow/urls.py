@@ -27,4 +27,6 @@ urlpatterns = [
     path("api/v1/", include("notifications.urls")),
     path("api/v1/sessions/", include("study_sessions.urls")),
     path("api/v1/xp/", include("xp.urls")),
+    path("api/v1/parent/", include("parent.urls")),
+    path("api/v1/ai/", include("ai.urls")),
 ]

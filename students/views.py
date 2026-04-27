@@ -2,10 +2,12 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework import status
-from .serializers import AddStudentSerializer
+from .serializers import AddStudentSerializer, DashboardResponseSerializer
 from .models import Student
 from schools.models import School
-from .models import Grade   # لو Grade في students
+from .models import Grade
+from . import services
+from . import selectors
 
 
 
@@ -90,3 +92,21 @@ def get_students(request):
     """ترجع قايمة الطلاب الي في المدارس"""
     students = Student.objects.all().values('id', 'full_name', 'student_id', 'grade__name', 'school__name')
     return Response(list(students))
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def dashboard(request):
+    """Get student dashboard."""
+    if not hasattr(request.user, 'student_profile'):
+        return Response(
+            {"error": "Student profile not found"},
+            status=404
+        )
+
+    student = request.user.student_profile
+
+    dashboard_data = services.get_student_dashboard(student)
+
+    serializer = DashboardResponseSerializer(dashboard_data)
+    return Response(serializer.data)
