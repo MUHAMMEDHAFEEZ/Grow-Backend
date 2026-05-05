@@ -68,3 +68,5 @@ class Events:
     ENROLLMENT_CREATED = "enrollment_created"
     SCHOOL_MEMBER_ADDED = "school_member_added"
     LESSON_JOINED = "lesson_joined"
+    INSIGHT_GENERATED = "insight_generated"
+    RISK_ALERT_GENERATED = "risk_alert_generated"

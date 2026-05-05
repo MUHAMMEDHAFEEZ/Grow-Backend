@@ -10,7 +10,7 @@ from rest_framework.viewsets import ViewSet
 from core.permissions import IsTeacher
 
 from . import selectors, services
-from .serializers import SubmissionCreateSerializer, SubmissionSerializer
+from .serializers import SubmissionCreateSerializer, SubmissionSerializer, TeacherDashboardSerializer
 
 
 _COURSE_PK_PARAM = OpenApiParameter(
@@ -153,3 +153,35 @@ class SubmissionViewSet(ViewSet):
     def grade(self, request: Request, pk: int = None, assignment_pk: int = None, course_pk: int = None) -> Response:
         submission = services.grade_submission(teacher=request.user, submission_id=pk)
         return Response(SubmissionSerializer(submission).data)
+
+
+class TeacherDashboardViewSet(ViewSet):
+    """Teacher dashboard with dynamic stats."""
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Dashboard"],
+        summary="Get teacher dashboard statistics",
+        description=(
+            "Returns dynamic statistics for the logged-in teacher:\n"
+            "- Total Students: unique students in teacher's courses\n"
+            "- Total Courses: courses taught by teacher\n"
+            "- Assignments Created: total assignments by teacher\n"
+            "- Active Assignments: assignments with future due date\n"
+            "- Recent Activity: latest submissions"
+        ),
+        responses={
+            200: TeacherDashboardSerializer,
+        },
+    )
+    @action(detail=False, methods=["get"], url_path="dashboard")
+    def dashboard(self, request: Request) -> Response:
+        teacher_id = request.user.id
+        stats = {
+            'total_students': selectors.get_teacher_total_students(teacher_id),
+            'total_courses': selectors.get_teacher_total_courses(teacher_id),
+            'assignments_created': selectors.get_teacher_total_assignments(teacher_id),
+            'active_assignments': selectors.get_teacher_active_assignments(teacher_id),
+            'recent_activity': selectors.get_teacher_recent_activity(teacher_id, limit=10),
+        }
+        return Response(TeacherDashboardSerializer(stats).data)

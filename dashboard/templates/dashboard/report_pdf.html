@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>School Management Dashboard Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; color: #333; }
+        h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+        h2 { color: #34495e; margin-top: 30px; }
+        .meta { color: #7f8c8d; font-size: 0.9em; margin-bottom: 30px; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th { background-color: #3498db; color: white; }
+        tr:nth-child(even) { background-color: #f2f2f2; }
+        .critical { color: #e74c3c; font-weight: bold; }
+        .warning { color: #f39c12; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>School Management Dashboard Report</h1>
+    <div class="meta">
+        Generated: {{ generated_at }}<br>
+        Filters: {{ filters }}
+    </div>
+
+    <h2>Risk Summary</h2>
+    <table>
+        <tr><th>Risk Tier</th><th>Count</th></tr>
+        {% for tier, count in report.by_tier.items %}
+        <tr>
+            <td>{{ tier|title }}</td>
+            <td class="{% if tier == 'critical' %}critical{% elif tier == 'high' %}warning{% endif %}">
+                {{ count }}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <h2>Top At-Risk Students</h2>
+    <table>
+        <tr><th>Student</th><th>Risk Score</th><th>Tier</th><th>Factors</th></tr>
+        {% for student in report.top_at_risk_students %}
+        <tr>
+            <td>{{ student.name }}</td>
+            <td>{{ student.risk_score }}</td>
+            <td class="{% if student.risk_tier == 'critical' %}critical{% elif student.risk_tier == 'high' %}warning{% endif %}">
+                {{ student.risk_tier|title }}
+            </td>
+            <td>{{ student.contributing_factors|join:", " }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>

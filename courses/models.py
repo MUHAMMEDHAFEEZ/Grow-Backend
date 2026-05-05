@@ -13,6 +13,9 @@ class Course(models.Model):
         limit_choices_to={"role": "teacher"},
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    target_capacity = models.PositiveIntegerField(
+        default=35, help_text="Target maximum enrollment"
+    )
 
     class Meta:
         ordering = ["-created_at"]

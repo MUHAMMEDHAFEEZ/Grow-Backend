@@ -15,6 +15,7 @@ from courses.views import (
     LessonViewSet,
     SubmissionViewSet,
 )
+from submissions.views import TeacherDashboardViewSet
 
 # Root router — DefaultRouter gives the browsable API root
 root_router = DefaultRouter()
@@ -40,4 +41,5 @@ urlpatterns = [
     path("", include(root_router.urls)),
     path("", include(assignments_router.urls)),
     path("", include(submissions_router.urls)),
+    path("dashboard/teacher/", TeacherDashboardViewSet.as_view({'get': 'dashboard'}), name="teacher-dashboard"),
 ]

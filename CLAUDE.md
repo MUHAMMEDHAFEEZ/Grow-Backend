@@ -1,11 +1,12 @@
 ﻿# grow Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-04-25
+Auto-generated from all feature plans. Last updated: 2026-05-06
 
 ## Active Technologies
 
 - Python 3.11 / Django 6.0 + Django REST Framework, drf-spectacular, djangorestframework-simplejwt, core.events.EventBus (001-backend-compliance-audit)
 - study_sessions app (StudySession model) + xp app (XPTransaction model) (001-study-session-xp)
+- dashboard app (DashboardInsight, StudentNote, InterventionRecord models) + WeasyPrint (PDF export) + openpyxl (Excel export) (001-school-management-dashboard)
 
 ## Project Structure
 
