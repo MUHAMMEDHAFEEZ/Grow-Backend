@@ -10,7 +10,7 @@ from io import BytesIO
 from django.utils import timezone
 
 from accounts.models import User
-from courses.models import Course, Enrollment
+from courses.models import Course, StudentCourse
 from core.events import EventBus, Events
 from django.template.loader import render_to_string
 
@@ -42,7 +42,7 @@ def generate_insights() -> list[dict]:
 
     # Rule 1: Overcrowded classes
     for course in Course.objects.all():
-        enrollment_count = Enrollment.objects.filter(course=course).count()
+        enrollment_count = StudentCourse.objects.filter(course=course).count()
         if course.target_capacity > 0:
             utilization = (enrollment_count / course.target_capacity) * 100
             if utilization > 110:

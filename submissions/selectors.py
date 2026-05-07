@@ -29,10 +29,10 @@ def get_submissions_for_student(student_id: int) -> QuerySet[Submission]:
 
 def get_teacher_total_students(teacher_id: int) -> int:
     """Get unique students enrolled in teacher's courses."""
-    from courses.models import Enrollment
+    from courses.models import StudentCourse
     from courses.models import Course
     course_ids = Course.objects.filter(teacher_id=teacher_id).values_list('id', flat=True)
-    return Enrollment.objects.filter(course_id__in=course_ids).values('student').distinct().count()
+    return StudentCourse.objects.filter(course_id__in=course_ids).values('student').distinct().count()
 
 
 def get_teacher_total_courses(teacher_id: int) -> int:

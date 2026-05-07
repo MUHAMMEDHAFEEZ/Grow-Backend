@@ -1,11 +1,10 @@
 from django.apps import AppConfig
 
 
-class CoreConfig(AppConfig):
+class TasksConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
-    name = "core"
+    name = "tasks"
 
     def ready(self) -> None:
-        from core.handlers import register_handlers
-
+        from tasks.handlers import register_handlers
         register_handlers()

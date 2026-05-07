@@ -70,3 +70,18 @@ class Events:
     LESSON_JOINED = "lesson_joined"
     INSIGHT_GENERATED = "insight_generated"
     RISK_ALERT_GENERATED = "risk_alert_generated"
+
+    # ---- 008-backend-arch-refactor ----
+    COURSE_OPENED = "course_opened"
+    LESSON_COMPLETED = "lesson_completed"
+    QUIZ_SUBMITTED = "quiz_submitted"
+    PROGRESS_MILESTONE_REACHED = "progress_milestone_reached"
+
+    # ---- 009-automated-student-tasks ----
+    LESSON_CREATED = "lesson_created"
+    QUIZ_CREATED = "quiz_created"
+
+# TODO(analytics): Future analytics pipeline integration
+# - ACTIVITY_LOG_CREATED events can feed into a real-time analytics stream
+# - Consider adding event versioning for schema evolution
+# - Rate-limit high-frequency events (e.g. lesson tracking) to avoid log spam

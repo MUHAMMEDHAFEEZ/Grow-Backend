@@ -12,7 +12,9 @@ from rest_framework_nested import routers as nested_routers
 from courses.views import (
     AssignmentViewSet,
     CourseViewSet,
+    LessonActivityViewSet,
     LessonViewSet,
+    QuizViewSet,
     SubmissionViewSet,
 )
 from submissions.views import TeacherDashboardViewSet
@@ -21,6 +23,8 @@ from submissions.views import TeacherDashboardViewSet
 root_router = DefaultRouter()
 root_router.register(r"courses", CourseViewSet, basename="course")
 root_router.register(r"lessons", LessonViewSet, basename="lesson")
+root_router.register(r"lessons", LessonActivityViewSet, basename="lesson-activity")
+root_router.register(r"quizzes", QuizViewSet, basename="quiz")
 
 # Nested routers use SimpleRouter to avoid duplicate converter registration
 assignments_router = nested_routers.NestedSimpleRouter(

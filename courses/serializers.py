@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from accounts.serializers import UserSerializer
 
-from .models import Course, Enrollment, Lesson
+from .models import Course, CourseProgress, Lesson, LessonActivity, Quiz, QuizAttempt, StudentCourse
 
 
 class LessonSerializer(serializers.ModelSerializer):
@@ -62,17 +62,94 @@ class CourseWriteSerializer(serializers.ModelSerializer):
         fields = ["title", "description"]
 
 
-class EnrollmentSerializer(serializers.ModelSerializer):
-    id = serializers.IntegerField(read_only=True, help_text="Enrollment record ID.")
-    student = UserSerializer(read_only=True, help_text="The enrolled student.")
-    enrolled_at = serializers.DateTimeField(
-        read_only=True, help_text="Enrollment timestamp."
-    )
+class StudentCourseSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(read_only=True)
+    student = UserSerializer(read_only=True)
+    enrolled_at = serializers.DateTimeField(read_only=True)
+    is_active = serializers.BooleanField(read_only=True)
 
     class Meta:
-        model = Enrollment
-        fields = ["id", "student", "enrolled_at"]
-        read_only_fields = ["id", "student", "enrolled_at"]
+        model = StudentCourse
+        fields = ["id", "student", "is_active", "enrolled_at"]
+        read_only_fields = ["id", "student", "is_active", "enrolled_at"]
+
+
+class CourseProgressSerializer(serializers.ModelSerializer):
+    student_name = serializers.SerializerMethodField()
+    study_time_formatted = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CourseProgress
+        fields = [
+            "student_id",
+            "student_name",
+            "progress_percentage",
+            "study_time_seconds",
+            "study_time_formatted",
+            "last_activity",
+            "completion_status",
+        ]
+
+    def get_student_name(self, obj: CourseProgress) -> str:
+        return obj.student.get_full_name() or obj.student.username
+
+    def get_study_time_formatted(self, obj: CourseProgress) -> str:
+        hours = obj.study_time_seconds // 3600
+        minutes = (obj.study_time_seconds % 3600) // 60
+        if hours > 0:
+            return f"{hours}h {minutes}m"
+        return f"{minutes}m"
+
+
+class QuizSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Quiz
+        fields = ["id", "course_id", "lesson_id", "title", "max_score", "created_at"]
+        read_only_fields = ["id", "created_at"]
+
+
+class QuizAttemptSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = QuizAttempt
+        fields = ["id", "attempt_number", "score", "submitted_at"]
+        read_only_fields = ["id", "attempt_number", "submitted_at"]
+
+
+class QuizSubmitSerializer(serializers.Serializer):
+    score = serializers.DecimalField(
+        max_digits=5, decimal_places=2, help_text="Score for this attempt."
+    )
+
+
+class LessonActivitySerializer(serializers.ModelSerializer):
+    lesson_title = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LessonActivity
+        fields = [
+            "id",
+            "lesson_id",
+            "lesson_title",
+            "watch_duration_seconds",
+            "completed",
+            "last_opened_at",
+        ]
+        read_only_fields = ["id", "watch_duration_seconds", "completed", "last_opened_at"]
+
+    def get_lesson_title(self, obj: LessonActivity) -> str:
+        return obj.lesson.title
+
+
+class LessonTrackSerializer(serializers.Serializer):
+    watch_duration_seconds = serializers.IntegerField(
+        required=False,
+        default=0,
+        min_value=0,
+        help_text="Incremental watch time in seconds for this session.",
+    )
+    completed = serializers.BooleanField(
+        required=False, default=False, help_text="Mark lesson as completed."
+    )
 
 
 class AttendanceResultSerializer(serializers.Serializer):

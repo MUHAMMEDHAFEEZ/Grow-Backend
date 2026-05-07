@@ -29,4 +29,5 @@ Python 3.11 / Django 6.0: Follow standard conventions
 - 001-study-session-xp: Added StudySession & XPTransaction models; study_sessions/XP apps implemented (renamed from sessions to avoid conflict); full CRUD; XP calculation 1 XP/min (5 min minimum); clean architecture
 
 <!-- MANUAL ADDITIONS START -->
+- 008-backend-arch-refactor: Enrollment refactor (Enrollment → StudentCourse + lazy creation); grade FK on Course; CourseProgress, LessonActivity, Quiz, QuizAttempt, ActivityLog models; event-driven tracking updates (LESSON_COMPLETED, QUIZ_SUBMITTED, PROGRESS_MILESTONE_REACHED); 1-min rate limit on progress updates; 12-month log retention; analytics aggregation selectors (courses app); attendance composite indexes + analytics selectors; LessonActivityViewSet at /lessons/{id}/track/ and /lessons/{id}/complete/; QuizViewSet at /quizzes/{id}/attempt/ and /quizzes/{id}/attempts/; ActivityLog auto-logged via EventBus handlers in core/handlers.py
 <!-- MANUAL ADDITIONS END -->

@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     "parent.apps.ParentConfig",
     "ai.apps.AiConfig",
     "dashboard.apps.DashboardConfig",
+    "tasks.apps.TasksConfig",
 ]
 
 MIDDLEWARE = [

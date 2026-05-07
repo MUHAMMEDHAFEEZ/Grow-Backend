@@ -4,7 +4,7 @@ dashboard/permissions.py — Role-based access control for dashboard endpoints.
 
 from rest_framework import permissions
 
-from courses.models import Course, Enrollment
+from courses.models import Course, StudentCourse
 
 
 class IsSchoolAdmin(permissions.BasePermission):
@@ -50,7 +50,7 @@ class IsTeacherOfStudent(permissions.BasePermission):
         if request.user.role == "teacher":
             student_id = view.kwargs.get("student_id")
             if student_id:
-                return Enrollment.objects.filter(
+                return StudentCourse.objects.filter(
                     course__teacher=request.user,
                     student_id=student_id,
                 ).exists()

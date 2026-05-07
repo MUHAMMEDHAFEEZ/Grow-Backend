@@ -16,17 +16,24 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from assignments.views import AssignmentViewSet
 
-from core.permissions import IsStudent, IsTeacher
+from core.permissions import IsSchoolAdmin, IsStudent, IsTeacher
 from submissions.views import SubmissionViewSet
 
 from . import selectors, services
+from .models import Course, Quiz as QuizModel
 from .serializers import (
     AttendanceResultSerializer,
+    CourseProgressSerializer,
     CourseSerializer,
     CourseWriteSerializer,
-    EnrollmentSerializer,
+    LessonActivitySerializer,
     LessonAttendanceSummarySerializer,
     LessonSerializer,
+    LessonTrackSerializer,
+    QuizAttemptSerializer,
+    QuizSerializer,
+    QuizSubmitSerializer,
+    StudentCourseSerializer,
 )
 
 
@@ -162,37 +169,117 @@ class CourseViewSet(viewsets.ViewSet):
         summary="Enroll in a course",
         parameters=[_COURSE_PK_PARAM],
         description=(
-            "**Students only.** Enroll the authenticated student in the course. "
-            "An `enrollment_created` notification is sent to the student upon success."
+            "**Students only.** Lazy enrollment — creates an engagement record "
+            "on first interaction. Returns existing record if already enrolled."
         ),
         request=None,
         responses={
             201: OpenApiResponse(
-                response=EnrollmentSerializer, description="Enrolled successfully."
+                response=StudentCourseSerializer, description="Enrolled successfully."
             ),
             403: OpenApiResponse(description="Only students can enroll."),
             404: OpenApiResponse(description="Course not found."),
-            409: OpenApiResponse(description="Already enrolled in this course."),
         },
     )
     @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated])
     def enroll(self, request: Request, pk: int = None) -> Response:
         enrollment = services.enroll_student(course_id=pk, student=request.user)
-        return Response(
-            EnrollmentSerializer(enrollment).data, status=status.HTTP_201_CREATED
-        )
+        serializer = StudentCourseSerializer(enrollment)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @extend_schema(
         tags=["Courses"],
         summary="List enrolled students",
         parameters=[_COURSE_PK_PARAM],
-        description="**Teachers only.** Returns all students currently enrolled in this course.",
-        responses={200: EnrollmentSerializer(many=True)},
+        description="**Teachers only.** Returns all students engaged in this course.",
+        responses={200: StudentCourseSerializer(many=True)},
     )
     @action(detail=True, methods=["get"], permission_classes=[IsTeacher])
     def students(self, request: Request, pk: int = None) -> Response:
         enrollments = selectors.get_course_students(course_id=pk)
-        return Response(EnrollmentSerializer(enrollments, many=True).data)
+        return Response(StudentCourseSerializer(enrollments, many=True).data)
+
+    @extend_schema(
+        tags=["Courses"],
+        summary="Set course grade",
+        parameters=[_COURSE_PK_PARAM],
+        description="**Teachers only.** Assign a grade level to this course.",
+        request=None,
+        responses={
+            200: CourseSerializer,
+            403: OpenApiResponse(description="You do not own this course."),
+            404: OpenApiResponse(description="Course or grade not found."),
+        },
+    )
+    @action(detail=True, methods=["post"], permission_classes=[IsTeacher])
+    def set_grade(self, request: Request, pk: int = None) -> Response:
+        grade_id = request.data.get("grade_id")
+        if not grade_id:
+            return Response(
+                {"error": "grade_id is required."}, status=status.HTTP_400_BAD_REQUEST
+            )
+        course = services.set_course_grade(
+            course_id=pk, teacher=request.user, grade_id=grade_id
+        )
+        return Response(CourseSerializer(course).data)
+
+    @extend_schema(
+        tags=["Courses"],
+        summary="Course progress (teacher)",
+        parameters=[_COURSE_PK_PARAM],
+        description="**Teachers only.** Returns progress for all engaged students.",
+        responses={200: CourseProgressSerializer(many=True)},
+    )
+    @action(detail=True, methods=["get"], permission_classes=[IsTeacher])
+    def progress(self, request: Request, pk: int = None) -> Response:
+        try:
+            course = selectors.get_all_courses().get(pk=pk)
+        except Course.DoesNotExist:
+            return Response(
+                {"error": "Not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        if course.teacher_id != request.user.pk:
+            return Response(
+                {"error": "You do not own this course."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        qs = selectors.get_all_progress_for_course(course)
+        return Response(CourseProgressSerializer(qs, many=True).data)
+
+    @extend_schema(
+        tags=["Courses"],
+        summary="My course progress (student)",
+        parameters=[_COURSE_PK_PARAM],
+        description="**Students only.** Returns the authenticated student's progress.",
+        responses={200: CourseProgressSerializer},
+    )
+    @action(
+        detail=True, methods=["get"], permission_classes=[IsAuthenticated]
+    )
+    def progress_me(self, request: Request, pk: int = None) -> Response:
+        if not request.user.is_student:
+            return Response(
+                {"error": "Only students can view their progress."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        try:
+            course = selectors.get_all_courses().get(pk=pk)
+        except Course.DoesNotExist:
+            return Response(
+                {"error": "Not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        progress = selectors.get_course_progress(request.user, course)
+        if not progress:
+            return Response(
+                {
+                    "progress_percentage": 0,
+                    "study_time_seconds": 0,
+                    "study_time_formatted": "0m",
+                    "last_activity": None,
+                    "completion_status": "not_started",
+                }
+            )
+        return Response(CourseProgressSerializer(progress).data)
 
     @extend_schema(
         methods=["GET"],
@@ -309,6 +396,161 @@ class CourseViewSet(viewsets.ViewSet):
             lesson_id=pk, teacher=request.user
         )
         return Response(LessonAttendanceSummarySerializer(summary).data)
+
+
+class QuizViewSet(viewsets.ViewSet):
+    """
+    ViewSet for quiz operations.
+    Routes: /quizzes/{id}/attempt/, /quizzes/{id}/attempts/
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Quizzes"],
+        summary="Submit a quiz attempt",
+        description="**Students only.** Submit a score for a quiz. Attempt number auto-increments.",
+        request=QuizSubmitSerializer,
+        responses={
+            201: QuizAttemptSerializer,
+            403: OpenApiResponse(description="Permission denied."),
+            404: OpenApiResponse(description="Quiz not found."),
+            429: OpenApiResponse(description="Rate limit exceeded."),
+        },
+    )
+    @action(detail=True, methods=["post"], permission_classes=[IsStudent])
+    def attempt(self, request: Request, pk: int = None) -> Response:
+        serializer = QuizSubmitSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        attempt = services.submit_quiz_attempt(
+            student=request.user,
+            quiz_id=pk,
+            score=serializer.validated_data["score"],
+        )
+        return Response(QuizAttemptSerializer(attempt).data, status=status.HTTP_201_CREATED)
+
+    @extend_schema(
+        tags=["Quizzes"],
+        summary="List quiz attempts",
+        description="**Student:** own attempts. **Teacher:** all attempts for their quiz.",
+        responses={200: QuizAttemptSerializer(many=True)},
+    )
+    @action(detail=True, methods=["get"], permission_classes=[IsAuthenticated])
+    def attempts(self, request: Request, pk: int = None) -> Response:
+        from .selectors import get_quiz_attempts, get_quiz_attempts_for_teacher
+        try:
+            quiz = QuizModel.objects.get(pk=pk)
+        except QuizModel.DoesNotExist:
+            return Response(
+                {"error": "Quiz not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        if request.user.is_student:
+            qs = get_quiz_attempts(request.user, quiz)
+        elif request.user.is_teacher:
+            qs = get_quiz_attempts_for_teacher(quiz)
+        else:
+            return Response(
+                {"error": "Permission denied."}, status=status.HTTP_403_FORBIDDEN
+            )
+        return Response(QuizAttemptSerializer(qs, many=True).data)
+
+    @extend_schema(
+        tags=["Quizzes"],
+        summary="Get quiz details",
+        responses={200: QuizSerializer},
+    )
+    def retrieve(self, request: Request, pk: int = None) -> Response:
+        try:
+            quiz = QuizModel.objects.get(pk=pk)
+        except QuizModel.DoesNotExist:
+            return Response(
+                {"error": "Not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        return Response(QuizSerializer(quiz).data)
+
+    @extend_schema(
+        tags=["Quizzes"],
+        summary="Create a quiz",
+        description="**Teachers only.** Create a quiz for a course you own.",
+        request=QuizSerializer,
+        responses={
+            201: QuizSerializer,
+            403: OpenApiResponse(description="Permission denied."),
+        },
+    )
+    def create(self, request: Request) -> Response:
+        serializer = QuizSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        quiz = services.create_quiz(
+            teacher=request.user,
+            course_id=serializer.validated_data["course_id"],
+            title=serializer.validated_data["title"],
+            max_score=serializer.validated_data["max_score"],
+            lesson_id=serializer.validated_data.get("lesson_id"),
+        )
+        return Response(QuizSerializer(quiz).data, status=status.HTTP_201_CREATED)
+
+    @extend_schema(
+        tags=["Quizzes"],
+        summary="List quizzes",
+        parameters=[
+            OpenApiParameter(
+                name="course", type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                description="Filter by course ID.",
+            ),
+        ],
+        responses={200: QuizSerializer(many=True)},
+    )
+    def list(self, request: Request) -> Response:
+        qs = QuizModel.objects.select_related("course").all()
+        course_id = request.query_params.get("course")
+        if course_id:
+            qs = qs.filter(course_id=course_id)
+        return Response(QuizSerializer(qs, many=True).data)
+
+
+class LessonActivityViewSet(viewsets.ViewSet):
+    """
+    ViewSet for lesson activity tracking.
+    Routes: /lessons/{id}/track/, /lessons/{id}/complete/
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Lessons"],
+        summary="Track lesson watch time",
+        description="**Students only.** Increment watch duration for a lesson.",
+        request=LessonTrackSerializer,
+        responses={200: LessonActivitySerializer},
+    )
+    @action(detail=True, methods=["post"], permission_classes=[IsStudent])
+    def track(self, request: Request, pk: int = None) -> Response:
+        serializer = LessonTrackSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        activity = services.track_lesson_watch(
+            student=request.user,
+            lesson_id=pk,
+            watch_duration_seconds=serializer.validated_data.get(
+                "watch_duration_seconds", 0
+            ),
+        )
+        return Response(LessonActivitySerializer(activity).data)
+
+    @extend_schema(
+        tags=["Lessons"],
+        summary="Complete a lesson",
+        description="**Students only.** Mark a lesson as completed and update course progress.",
+        responses={200: LessonActivitySerializer},
+    )
+    @action(detail=True, methods=["post"], permission_classes=[IsStudent])
+    def complete(self, request: Request, pk: int = None) -> Response:
+        activity = services.complete_lesson(
+            student=request.user,
+            lesson_id=pk,
+        )
+        return Response(LessonActivitySerializer(activity).data)
 
 
 class LessonViewSet(viewsets.ViewSet):

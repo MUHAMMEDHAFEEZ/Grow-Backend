@@ -39,9 +39,9 @@ def course(teacher):
 
 @pytest.fixture
 def enrollment(student, course):
-    from courses.models import Enrollment
+    from courses.models import StudentCourse
 
-    return Enrollment.objects.create(course=course, student=student)
+    return StudentCourse.objects.create(course=course, student=student)
 
 
 @pytest.fixture

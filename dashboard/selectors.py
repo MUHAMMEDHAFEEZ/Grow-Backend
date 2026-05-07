@@ -17,7 +17,7 @@ from django.utils import timezone
 
 from accounts.models import SchoolMembership, User
 from attendance.models import AttendanceRecord
-from courses.models import Course, Enrollment
+from courses.models import Course, StudentCourse
 from grades.models import Grade
 from submissions.models import Submission
 
@@ -256,7 +256,7 @@ def get_dashboard_overview(
 
     students_per_class = []
     for course in Course.objects.all():
-        count = Enrollment.objects.filter(course=course).count()
+        count = StudentCourse.objects.filter(course=course).count()
         students_per_class.append(
             {"class_id": course.id, "class_name": course.title, "count": count}
         )
@@ -318,12 +318,12 @@ def get_classes_list(
 
     results = []
     for course in courses:
-        enrollment_count = Enrollment.objects.filter(course=course).count()
+        enrollment_count = StudentCourse.objects.filter(course=course).count()
         capacity_util = round(
             (enrollment_count / course.target_capacity) * 100, 1
         ) if course.target_capacity > 0 else 0.0
 
-        enrolled_students = Enrollment.objects.filter(course=course).values_list(
+        enrolled_students = StudentCourse.objects.filter(course=course).values_list(
             "student_id", flat=True
         )
         gpas = []
@@ -374,7 +374,7 @@ def get_class_detail(class_id: int) -> dict[str, Any]:
     if not course:
         return {}
 
-    enrolled_students = Enrollment.objects.filter(course=course).values_list(
+    enrolled_students = StudentCourse.objects.filter(course=course).values_list(
         "student_id", flat=True
     )
     enrollment_count = len(enrolled_students)
@@ -434,7 +434,7 @@ def get_class_detail(class_id: int) -> dict[str, Any]:
     teacher_student_ids = set()
     for tc in teacher_courses:
         teacher_student_ids.update(
-            Enrollment.objects.filter(course=tc).values_list("student_id", flat=True)
+            StudentCourse.objects.filter(course=tc).values_list("student_id", flat=True)
         )
     teacher_gpas = []
     for sid in teacher_student_ids:
@@ -558,7 +558,7 @@ def get_student_profile(student_id: int) -> dict[str, Any]:
         for n in notes
     ]
 
-    current_classes = Enrollment.objects.filter(
+    current_classes = StudentCourse.objects.filter(
         student=student
     ).select_related("course__teacher")
     classes_data = [
@@ -602,7 +602,7 @@ def get_report_summary(filters: dict[str, Any]) -> dict[str, Any]:
 
     class_id = filters.get("class_id")
     if class_id:
-        student_ids = Enrollment.objects.filter(course_id=class_id).values_list(
+        student_ids = StudentCourse.objects.filter(course_id=class_id).values_list(
             "student_id", flat=True
         )
         qs = qs.filter(id__in=student_ids)
