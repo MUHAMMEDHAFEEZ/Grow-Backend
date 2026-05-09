@@ -22,6 +22,18 @@ info:
   license:
     name: Proprietary
 paths:
+  /api/v1/ai/chat/:
+    post:
+      operationId: ai_chat_create
+      description: Chat with AI assistant using student context.
+      tags:
+      - ai
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/v1/attendance/:
     get:
       operationId: attendance_list
@@ -121,6 +133,104 @@ paths:
           description: Only teachers can mark attendance.
         '404':
           description: Course not found or you do not own it.
+  /api/v1/auth/change-password/:
+    post:
+      operationId: auth_change_password_create
+      description: Change the current user's password. Requires the existing password
+        for verification.
+      summary: Change password (authenticated)
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Password changed successfully.
+        '400':
+          description: Old password incorrect or new password too weak.
+  /api/v1/auth/enrollment-codes/use/:
+    post:
+      operationId: auth_enrollment_codes_use_create
+      description: Submit a single-use enrollment code to join the associated school.
+        The code is atomically consumed on success. Failed attempts (wrong code, used
+        code, revoked code) count toward the rate limit.
+      summary: Use an enrollment code
+      tags:
+      - Enrollment
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UseCodeRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UseCodeRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UseCodeRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Membership'
+          description: Enrolled successfully.
+        '400':
+          description: Invalid, used, revoked code, or business rule violation.
+        '401':
+          description: Authentication required.
+        '429':
+          description: Rate limit exceeded.
+  /api/v1/auth/forgot-password/:
+    post:
+      operationId: auth_forgot_password_create
+      description: Sends a password-reset link to the given email address if an account
+        exists. The link contains a one-time token valid for **24 hours**. Always
+        returns 200 to prevent user-enumeration attacks.
+      summary: Request a password reset link
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+            examples:
+              ForgotPassword:
+                value:
+                  email: sara@school.edu
+                summary: Forgot Password
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          description: Reset email sent (if account exists).
   /api/v1/auth/login/:
     post:
       operationId: auth_login_create
@@ -128,9 +238,9 @@ paths:
         Authenticate with email and password. Returns:
 
         - `access` — short-lived JWT (60 min). Send as `Authorization: Bearer <token>`.
-        - `refresh` — long-lived JWT (7 days). Use `POST /auth/token/refresh/` to get a new access token.
+        - `refresh` — long-lived JWT (7 days). Use `POST /auth/token/refresh/` to renew.
 
-        Click the **Authorize** button at the top of this page and paste the `access` token to authenticate all subsequent requests.
+        Click the **Authorize** button at the top and paste the `access` token to authenticate all subsequent requests in Swagger UI.
       summary: Login — obtain JWT tokens
       tags:
       - Auth
@@ -140,11 +250,10 @@ paths:
             schema:
               $ref: '#/components/schemas/LoginRequest'
             examples:
-              LoginExample:
+              Login:
                 value:
                   email: sara@school.edu
                   password: SecurePass123
-                summary: Login Example
           application/x-www-form-urlencoded:
             schema:
               $ref: '#/components/schemas/LoginRequest'
@@ -176,11 +285,44 @@ paths:
           description: Login successful.
         '400':
           description: Invalid credentials.
+  /api/v1/auth/logout/:
+    post:
+      operationId: auth_logout_create
+      description: Blacklists the provided refresh token, preventing it from being
+        used to issue new access tokens. The current access token remains valid until
+        it expires (60 min). Call this on logout from the client.
+      summary: Logout — invalidate refresh token
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+            examples:
+              Logout:
+                value:
+                  refresh: eyJhbGciOiJIUzI1NiIsInR5...
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '204':
+          description: Logged out successfully.
+        '400':
+          description: Invalid or already-used refresh token.
   /api/v1/auth/me/:
     get:
       operationId: auth_me_retrieve
       description: Returns the profile of the currently authenticated user.
-      summary: Get current user profile
+      summary: Get current user (alias for GET /auth/profile/)
       tags:
       - Auth
       security:
@@ -236,17 +378,75 @@ paths:
           description: Validation error (e.g. child_id is not a student).
         '403':
           description: Only parents can use this endpoint.
+  /api/v1/auth/profile/:
+    get:
+      operationId: auth_profile_retrieve
+      description: Returns the full profile of the currently authenticated user.
+      summary: Get current user profile
+      tags:
+      - Auth
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: Current user data.
+        '401':
+          description: Not authenticated.
+    put:
+      operationId: auth_profile_update
+      description: Update the authenticated user's profile fields. All fields are
+        optional — only the fields you include will be updated.
+      summary: Update profile
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileUpdateRequest'
+            examples:
+              UpdateProfile:
+                value:
+                  first_name: Sara
+                  last_name: Ali
+                  phone: '+201234567890'
+                  avatar: https://cdn.example.com/avatars/sara.jpg
+                summary: Update Profile
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProfileUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProfileUpdateRequest'
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: Updated profile.
+        '400':
+          description: Validation error.
   /api/v1/auth/register/:
     post:
       operationId: auth_register_create
       description: |-
-        Create a new user account. The `role` field determines what the account can access:
+        Create a new user account. The `role` field determines access level:
 
         - **student** — enroll in courses, submit assignments, view own grades
         - **teacher** — create courses, post assignments, grade submissions
         - **parent** — view a linked child's grades, attendance, and notifications
+        - **school_admin** — manage a school, add teachers, oversee courses
 
-        Returns the created user profile (no token — call `/auth/login/` next).
+        Returns the created user profile. Call `/auth/login/` to obtain tokens.
       summary: Register a new account
       tags:
       - Auth
@@ -262,14 +462,14 @@ paths:
                   email: sara@school.edu
                   password: SecurePass123
                   role: student
-                summary: Register a student account
-              TeacherRegistration:
+                summary: Student Registration
+              SchoolAdminRegistration:
                 value:
-                  username: mr_ahmed
-                  email: ahmed@school.edu
-                  password: TeachPass456
-                  role: teacher
-                summary: Register a teacher account
+                  username: admin_ali
+                  email: ali@school.edu
+                  password: AdminPass456
+                  role: school_admin
+                summary: School Admin Registration
           application/x-www-form-urlencoded:
             schema:
               $ref: '#/components/schemas/RegisterRequest'
@@ -289,7 +489,207 @@ paths:
                 $ref: '#/components/schemas/User'
           description: Account created successfully.
         '400':
-          description: Validation error (duplicate email, invalid role, etc.).
+          description: Validation error (duplicate email, weak password, etc.).
+  /api/v1/auth/reset-password/:
+    post:
+      operationId: auth_reset_password_create
+      description: Sets a new password using the token from the reset email. Each
+        token can only be used once and expires after 24 hours.
+      summary: Reset password using a token
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+            examples:
+              ResetPassword:
+                value:
+                  token: 550e8400-e29b-41d4-a716-446655440000
+                  new_password: NewSecurePass99
+                summary: Reset Password
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          description: Password updated successfully.
+        '400':
+          description: Token invalid, expired, or already used.
+  /api/v1/auth/school/:
+    get:
+      operationId: auth_school_retrieve
+      description: '**School admins only.** Returns the school owned by the authenticated
+        admin.'
+      summary: Get my school
+      tags:
+      - Auth
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/School'
+          description: School details.
+        '404':
+          description: No school found for this admin.
+    post:
+      operationId: auth_school_create
+      description: '**School admins only.** Creates a new school owned by the calling
+        school admin. Each admin can own exactly one school. A URL-friendly `slug`
+        is auto-generated from the school name.'
+      summary: Create a school
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SchoolCreateRequest'
+            examples:
+              CreateSchool:
+                value:
+                  name: Al-Nour International School
+                summary: Create School
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SchoolCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SchoolCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/School'
+          description: School created.
+        '400':
+          description: Validation error.
+        '403':
+          description: Only school admins can create schools.
+        '409':
+          description: You already own a school.
+  /api/v1/auth/schools/{school_id}/enrollment-codes/:
+    get:
+      operationId: auth_schools_enrollment_codes_retrieve
+      description: '**School admins only.** Returns a paginated list of all enrollment
+        codes for the caller''s school, including status, usage details, and revocation
+        details.'
+      summary: List enrollment codes for a school
+      parameters:
+      - in: path
+        name: school_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Enrollment
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EnrollmentCode'
+          description: Paginated code list.
+        '403':
+          description: Not the school's admin.
+        '404':
+          description: School not found.
+  /api/v1/auth/schools/{school_id}/enrollment-codes/{code_id}/revoke/:
+    post:
+      operationId: auth_schools_enrollment_codes_revoke_create
+      description: '**School admins only.** Permanently revokes an available (unused)
+        enrollment code. Revoked codes cannot be enrolled with.'
+      summary: Revoke an enrollment code
+      parameters:
+      - in: path
+        name: code_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: school_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Enrollment
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrollmentCode'
+          description: Code revoked.
+        '400':
+          description: Code already used or revoked.
+        '403':
+          description: Not the school's admin.
+        '404':
+          description: School or code not found.
+  /api/v1/auth/schools/{school_id}/enrollment-codes/generate/:
+    post:
+      operationId: auth_schools_enrollment_codes_generate_create
+      description: '**School admins only.** Generates a batch of additional single-use
+        enrollment codes for the school. No upper limit on quantity.'
+      summary: Generate additional enrollment codes
+      parameters:
+      - in: path
+        name: school_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Enrollment
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateCodesRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GenerateCodesRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GenerateCodesRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          description: Codes generated.
+        '400':
+          description: Invalid quantity.
+        '403':
+          description: Not the school's admin.
+        '404':
+          description: School not found.
   /api/v1/auth/token/refresh/:
     post:
       operationId: auth_token_refresh_create
@@ -463,9 +863,9 @@ paths:
   /api/v1/courses/{course_pk}/assignments/{assignment_pk}/submissions/:
     get:
       operationId: courses_assignments_submissions_list
-      description: '**Teachers only.** Returns all student submissions for the specified
-        assignment. Each submission includes the student ID, content, status (`pending`/`graded`),
-        and the timestamp.'
+      description: '**Teachers only.** Returns student submissions for the specified
+        assignment within a course the teacher owns. Each submission includes the
+        student ID, content, status (`pending`/`graded`), and the timestamp.'
       summary: List submissions for an assignment
       parameters:
       - in: path
@@ -494,11 +894,13 @@ paths:
                 items:
                   $ref: '#/components/schemas/Submission'
           description: ''
+        '403':
+          description: Not a teacher, or you do not own this course.
   /api/v1/courses/{course_pk}/assignments/{assignment_pk}/submissions/{id}/:
     get:
       operationId: courses_assignments_submissions_retrieve
       description: Retrieve a single submission by its ID. Accessible to the owning
-        student and the course teacher.
+        student and the teacher of the submission's course.
       summary: Get a specific submission
       parameters:
       - in: path
@@ -531,6 +933,49 @@ paths:
               schema:
                 $ref: '#/components/schemas/Submission'
           description: ''
+        '403':
+          description: You do not have access to this submission.
+        '404':
+          description: Submission not found.
+  /api/v1/courses/{course_pk}/assignments/{assignment_pk}/submissions/{id}/grade/:
+    post:
+      operationId: courses_assignments_submissions_grade_create
+      description: '**Teachers only.** Mark a submission as graded. Only the teacher
+        who owns the course can grade submissions.'
+      summary: Grade a submission
+      parameters:
+      - in: path
+        name: assignment_pk
+        schema:
+          type: integer
+        description: ID of the parent assignment.
+        required: true
+      - in: path
+        name: course_pk
+        schema:
+          type: integer
+        description: ID of the parent course.
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Unique submission ID.
+        required: true
+      tags:
+      - Submissions
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Submission'
+          description: ''
+        '403':
+          description: Not a teacher, or you do not own this course.
         '404':
           description: Submission not found.
   /api/v1/courses/{course_pk}/assignments/{assignment_pk}/submissions/submit/:
@@ -800,11 +1245,40 @@ paths:
           description: You do not own this course.
         '404':
           description: Course not found.
+  /api/v1/courses/{id}/attendance/:
+    get:
+      operationId: courses_attendance_retrieve
+      description: '**Teachers only.** Returns attendance status for all enrolled
+        students in a lesson.'
+      summary: Get lesson attendance
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Unique lesson ID.
+        required: true
+      tags:
+      - Lessons
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LessonAttendanceSummary'
+          description: Lesson attendance summary.
+        '403':
+          description: You do not have permission to view this attendance.
+        '404':
+          description: Lesson not found.
   /api/v1/courses/{id}/enroll/:
     post:
       operationId: courses_enroll_create
-      description: '**Students only.** Enroll the authenticated student in the course.
-        An `enrollment_created` notification is sent to the student upon success.'
+      description: '**Students only.** Lazy enrollment — creates an engagement record
+        on first interaction. Returns existing record if already enrolled.'
       summary: Enroll in a course
       parameters:
       - in: path
@@ -823,14 +1297,47 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Enrollment'
+                $ref: '#/components/schemas/StudentCourse'
           description: Enrolled successfully.
         '403':
           description: Only students can enroll.
         '404':
           description: Course not found.
-        '409':
-          description: Already enrolled in this course.
+  /api/v1/courses/{id}/join/:
+    post:
+      operationId: courses_join_create
+      description: |-
+        **Students only.** Automatically marks attendance when a student joins a lesson. Status is calculated based on server time:
+        - Present: joins within 10 minutes of start time
+        - Late: joins after grace period but before lesson ends
+        - Absent: joins after lesson ends
+        - Rejected: joins before lesson starts
+      summary: Join a lesson
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Unique lesson ID.
+        required: true
+      tags:
+      - Lessons
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttendanceResult'
+          description: Attendance marked successfully.
+        '400':
+          description: Cannot join before lesson starts.
+        '403':
+          description: Not enrolled in this course.
+        '404':
+          description: Lesson not found.
   /api/v1/courses/{id}/lessons/:
     get:
       operationId: courses_lessons_list
@@ -904,11 +1411,88 @@ paths:
           description: Validation error.
         '403':
           description: You do not own this course.
+  /api/v1/courses/{id}/progress/:
+    get:
+      operationId: courses_progress_list
+      description: '**Teachers only.** Returns progress for all engaged students.'
+      summary: Course progress (teacher)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Unique course ID.
+        required: true
+      tags:
+      - Courses
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CourseProgress'
+          description: ''
+  /api/v1/courses/{id}/progress_me/:
+    get:
+      operationId: courses_progress_me_retrieve
+      description: '**Students only.** Returns the authenticated student''s progress.'
+      summary: My course progress (student)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Unique course ID.
+        required: true
+      tags:
+      - Courses
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseProgress'
+          description: ''
+  /api/v1/courses/{id}/set_grade/:
+    post:
+      operationId: courses_set_grade_create
+      description: '**Teachers only.** Assign a grade level to this course.'
+      summary: Set course grade
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Unique course ID.
+        required: true
+      tags:
+      - Courses
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+          description: ''
+        '403':
+          description: You do not own this course.
+        '404':
+          description: Course or grade not found.
   /api/v1/courses/{id}/students/:
     get:
       operationId: courses_students_list
-      description: '**Teachers only.** Returns all students currently enrolled in
-        this course.'
+      description: '**Teachers only.** Returns all students engaged in this course.'
       summary: List enrolled students
       parameters:
       - in: path
@@ -929,7 +1513,153 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Enrollment'
+                  $ref: '#/components/schemas/StudentCourse'
+          description: ''
+  /api/v1/dashboard/classes/:
+    get:
+      operationId: dashboard_classes_retrieve
+      tags:
+      - dashboard
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/dashboard/classes/{class_id}/:
+    get:
+      operationId: dashboard_classes_retrieve_2
+      parameters:
+      - in: path
+        name: class_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - dashboard
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/dashboard/insights/{insight_id}/dismiss/:
+    post:
+      operationId: dashboard_insights_dismiss_create
+      parameters:
+      - in: path
+        name: insight_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - dashboard
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/dashboard/overview/:
+    get:
+      operationId: dashboard_overview_retrieve
+      tags:
+      - dashboard
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/dashboard/reports/:
+    get:
+      operationId: dashboard_reports_retrieve
+      tags:
+      - dashboard
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/dashboard/reports/export/:
+    get:
+      operationId: dashboard_reports_export_retrieve
+      tags:
+      - dashboard
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/dashboard/risk-summary/:
+    get:
+      operationId: dashboard_risk_summary_retrieve
+      tags:
+      - dashboard
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/dashboard/students/{student_id}/:
+    get:
+      operationId: dashboard_students_retrieve
+      parameters:
+      - in: path
+        name: student_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - dashboard
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/dashboard/students/{student_id}/notes/:
+    post:
+      operationId: dashboard_students_notes_create
+      parameters:
+      - in: path
+        name: student_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - dashboard
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/dashboard/teacher/:
+    get:
+      operationId: dashboard_teacher_retrieve
+      description: |-
+        Returns dynamic statistics for the logged-in teacher:
+        - Total Students: unique students in teacher's courses
+        - Total Courses: courses taught by teacher
+        - Assignments Created: total assignments by teacher
+        - Active Assignments: assignments with future due date
+        - Recent Activity: latest submissions
+      summary: Get teacher dashboard statistics
+      tags:
+      - Dashboard
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeacherDashboard'
           description: ''
   /api/v1/grades/:
     get:
@@ -969,6 +1699,159 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Grade'
+          description: ''
+  /api/v1/grades/student/{student_id}/gpa/:
+    get:
+      operationId: grades_student_gpa_retrieve
+      description: |-
+        Returns the grade point average for a student.
+
+        **Access:**
+        - Students can view their own GPA
+        - Teachers can view any student's GPA
+        - Parents can view their child's GPA
+      summary: Get student GPA
+      parameters:
+      - in: path
+        name: student_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Grades
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GPA'
+          description: ''
+        '403':
+          description: Not authorized to view this student's GPA.
+  /api/v1/lessons/{id}/attendance/:
+    get:
+      operationId: lessons_attendance_retrieve
+      description: '**Teachers only.** Returns attendance status for all enrolled
+        students in a lesson.'
+      summary: Get lesson attendance
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Unique lesson ID.
+        required: true
+      tags:
+      - Lessons
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LessonAttendanceSummary'
+          description: Lesson attendance summary.
+        '403':
+          description: You do not have permission to view this attendance.
+        '404':
+          description: Lesson not found.
+  /api/v1/lessons/{id}/complete/:
+    post:
+      operationId: lessons_complete_create
+      description: '**Students only.** Mark a lesson as completed and update course
+        progress.'
+      summary: Complete a lesson
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - Lessons
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LessonActivity'
+          description: ''
+  /api/v1/lessons/{id}/join/:
+    post:
+      operationId: lessons_join_create
+      description: |-
+        **Students only.** Automatically marks attendance when a student joins a lesson. Status is calculated based on server time:
+        - Present: joins within 10 minutes of start time
+        - Late: joins after grace period but before lesson ends
+        - Absent: joins after lesson ends
+        - Rejected: joins before lesson starts
+      summary: Join a lesson
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Unique lesson ID.
+        required: true
+      tags:
+      - Lessons
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttendanceResult'
+          description: Attendance marked successfully.
+        '400':
+          description: Cannot join before lesson starts.
+        '403':
+          description: Not enrolled in this course.
+        '404':
+          description: Lesson not found.
+  /api/v1/lessons/{id}/track/:
+    post:
+      operationId: lessons_track_create
+      description: '**Students only.** Increment watch duration for a lesson.'
+      summary: Track lesson watch time
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - Lessons
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LessonTrackRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LessonTrackRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LessonTrackRequest'
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LessonActivity'
           description: ''
   /api/v1/notifications/:
     get:
@@ -1070,6 +1953,250 @@ paths:
                     marked_read: 4
                   summary: Mark All Read Response
           description: All notifications marked as read.
+  /api/v1/parent/dashboard/{student_id}/:
+    get:
+      operationId: parent_dashboard_retrieve
+      description: Returns analytics dashboard for the specified student. Only the
+        parent of the student can view this dashboard.
+      summary: Get parent dashboard
+      parameters:
+      - in: path
+        name: student_id
+        schema:
+          type: integer
+        description: ID of the student to view dashboard for.
+        required: true
+      tags:
+      - Parent
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dashboard'
+          description: ''
+  /api/v1/quizzes/:
+    get:
+      operationId: quizzes_list
+      description: |-
+        ViewSet for quiz operations.
+        Routes: /quizzes/{id}/attempt/, /quizzes/{id}/attempts/
+      summary: List quizzes
+      parameters:
+      - in: query
+        name: course
+        schema:
+          type: integer
+        description: Filter by course ID.
+      tags:
+      - Quizzes
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Quiz'
+          description: ''
+    post:
+      operationId: quizzes_create
+      description: '**Teachers only.** Create a quiz for a course you own.'
+      summary: Create a quiz
+      tags:
+      - Quizzes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuizRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/QuizRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/QuizRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Quiz'
+          description: ''
+        '403':
+          description: Permission denied.
+  /api/v1/quizzes/{id}/:
+    get:
+      operationId: quizzes_retrieve
+      description: |-
+        ViewSet for quiz operations.
+        Routes: /quizzes/{id}/attempt/, /quizzes/{id}/attempts/
+      summary: Get quiz details
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - Quizzes
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Quiz'
+          description: ''
+  /api/v1/quizzes/{id}/attempt/:
+    post:
+      operationId: quizzes_attempt_create
+      description: '**Students only.** Submit a score for a quiz. Attempt number auto-increments.'
+      summary: Submit a quiz attempt
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - Quizzes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuizSubmitRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/QuizSubmitRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/QuizSubmitRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuizAttempt'
+          description: ''
+        '403':
+          description: Permission denied.
+        '404':
+          description: Quiz not found.
+        '429':
+          description: Rate limit exceeded.
+  /api/v1/quizzes/{id}/attempts/:
+    get:
+      operationId: quizzes_attempts_list
+      description: '**Student:** own attempts. **Teacher:** all attempts for their
+        quiz.'
+      summary: List quiz attempts
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - Quizzes
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/QuizAttempt'
+          description: ''
+  /api/v1/sessions/:
+    get:
+      operationId: sessions_retrieve
+      description: |-
+        GET /sessions/
+        List all sessions for the authenticated user.
+      tags:
+      - sessions
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/sessions/active/:
+    get:
+      operationId: sessions_active_retrieve
+      description: |-
+        GET /sessions/active/
+        Get the currently active session.
+      tags:
+      - sessions
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/sessions/end/:
+    post:
+      operationId: sessions_end_create
+      description: |-
+        POST /sessions/end/
+        End the current study session.
+      tags:
+      - sessions
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/sessions/start/:
+    post:
+      operationId: sessions_start_create
+      description: |-
+        POST /sessions/start/
+        Start a new study session.
+      tags:
+      - sessions
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/sessions/total/:
+    get:
+      operationId: sessions_total_retrieve
+      description: |-
+        GET /sessions/total/
+        Get total study time.
+      tags:
+      - sessions
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/v1/submissions/{submission_pk}/grade/:
     post:
       operationId: submissions_grade_create
@@ -1140,6 +2267,49 @@ paths:
           description: Submission not found.
         '409':
           description: This submission is already graded.
+  /api/v1/xp/add/:
+    post:
+      operationId: xp_add_create
+      description: |-
+        POST /xp/add/
+        Add XP to a student's account.
+        Used by other apps (assignments, quizzes, attendance).
+      tags:
+      - xp
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/xp/history/:
+    get:
+      operationId: xp_history_retrieve
+      description: |-
+        GET /xp/history/
+        Get XP transaction history.
+      tags:
+      - xp
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/xp/total/:
+    get:
+      operationId: xp_total_retrieve
+      description: |-
+        GET /xp/total/
+        Get total XP for the authenticated student.
+      tags:
+      - xp
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
 components:
   schemas:
     Assignment:
@@ -1255,6 +2425,23 @@ components:
       required:
       - status
       - student_id
+    AttendanceResult:
+      type: object
+      properties:
+        status:
+          type: string
+          description: 'Attendance status: present, late, or absent.'
+        date:
+          type: string
+          format: date
+          description: Date of the attendance.
+        is_new:
+          type: boolean
+          description: True if this is a new attendance record.
+      required:
+      - date
+      - is_new
+      - status
     AttendanceStatusEnum:
       enum:
       - present
@@ -1265,6 +2452,32 @@ components:
         * `present` - Present
         * `absent` - Absent
         * `late` - Late
+    ChangePasswordRequest:
+      type: object
+      properties:
+        old_password:
+          type: string
+          writeOnly: true
+          minLength: 1
+          description: Current password.
+        new_password:
+          type: string
+          writeOnly: true
+          minLength: 8
+          description: New password (minimum 8 characters).
+      required:
+      - new_password
+      - old_password
+    CompletionStatusEnum:
+      enum:
+      - not_started
+      - in_progress
+      - completed
+      type: string
+      description: |-
+        * `not_started` - Not started
+        * `in_progress` - In progress
+        * `completed` - Completed
     Course:
       type: object
       properties:
@@ -1293,6 +2506,37 @@ components:
       - id
       - teacher
       - title
+    CourseProgress:
+      type: object
+      properties:
+        student_id:
+          type: integer
+          readOnly: true
+        student_name:
+          type: string
+          readOnly: true
+        progress_percentage:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        study_time_seconds:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        study_time_formatted:
+          type: string
+          readOnly: true
+        last_activity:
+          type: string
+          format: date-time
+          nullable: true
+        completion_status:
+          $ref: '#/components/schemas/CompletionStatusEnum'
+      required:
+      - student_id
+      - student_name
+      - study_time_formatted
     CourseWriteRequest:
       type: object
       properties:
@@ -1306,27 +2550,117 @@ components:
           description: Optional course description.
       required:
       - title
-    Enrollment:
+    Dashboard:
+      type: object
+      properties:
+        gpa:
+          type: object
+          additionalProperties: {}
+        study_hours:
+          type: object
+          additionalProperties: {}
+        engagement:
+          type: integer
+        subjects:
+          type: array
+          items: {}
+        recent_activity:
+          type: array
+          items: {}
+      required:
+      - engagement
+      - gpa
+      - recent_activity
+      - study_hours
+      - subjects
+    EnrollmentCode:
       type: object
       properties:
         id:
           type: integer
           readOnly: true
-          description: Enrollment record ID.
-        student:
-          allOf:
-          - $ref: '#/components/schemas/User'
+        token:
+          type: string
+          format: uuid
           readOnly: true
-          description: The enrolled student.
-        enrolled_at:
+        status:
+          allOf:
+          - $ref: '#/components/schemas/EnrollmentCodeStatusEnum'
+          readOnly: true
+        used_by:
+          allOf:
+          - $ref: '#/components/schemas/_BriefUser'
+          readOnly: true
+        used_at:
           type: string
           format: date-time
           readOnly: true
-          description: Enrollment timestamp.
+          nullable: true
+        revoked_by:
+          allOf:
+          - $ref: '#/components/schemas/_BriefUser'
+          readOnly: true
+        revoked_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
       required:
-      - enrolled_at
+      - created_at
       - id
-      - student
+      - revoked_at
+      - revoked_by
+      - status
+      - token
+      - used_at
+      - used_by
+    EnrollmentCodeStatusEnum:
+      enum:
+      - available
+      - used
+      - revoked
+      type: string
+      description: |-
+        * `available` - Available
+        * `used` - Used
+        * `revoked` - Revoked
+    ForgotPasswordRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+          description: Email address associated with the account.
+      required:
+      - email
+    GPA:
+      type: object
+      properties:
+        student_id:
+          type: integer
+        gpa:
+          type: number
+          format: double
+        graded_count:
+          type: integer
+      required:
+      - gpa
+      - graded_count
+      - student_id
+    GenerateCodesRequest:
+      type: object
+      properties:
+        quantity:
+          type: integer
+          minimum: 1
+          description: Number of enrollment codes to generate (must be ≥ 1).
+      required:
+      - quantity
     Grade:
       type: object
       properties:
@@ -1404,6 +2738,58 @@ components:
       - created_at
       - id
       - title
+    LessonActivity:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        lesson_id:
+          type: integer
+          readOnly: true
+        lesson_title:
+          type: string
+          readOnly: true
+        watch_duration_seconds:
+          type: integer
+          readOnly: true
+        completed:
+          type: boolean
+          readOnly: true
+        last_opened_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - completed
+      - id
+      - last_opened_at
+      - lesson_id
+      - lesson_title
+      - watch_duration_seconds
+    LessonAttendanceSummary:
+      type: object
+      properties:
+        lesson_id:
+          type: integer
+          description: Lesson ID.
+        lesson_title:
+          type: string
+          description: Lesson title.
+        total_enrolled:
+          type: integer
+          description: Total number of enrolled students.
+        attendance:
+          type: array
+          items:
+            $ref: '#/components/schemas/StudentAttendance'
+          description: List of student attendance records.
+      required:
+      - attendance
+      - lesson_id
+      - lesson_title
+      - total_enrolled
     LessonRequest:
       type: object
       properties:
@@ -1423,9 +2809,20 @@ components:
       required:
       - content
       - title
+    LessonTrackRequest:
+      type: object
+      properties:
+        watch_duration_seconds:
+          type: integer
+          minimum: 0
+          default: 0
+          description: Incremental watch time in seconds for this session.
+        completed:
+          type: boolean
+          default: false
+          description: Mark lesson as completed.
     LoginRequest:
       type: object
-      description: Input schema for the login endpoint.
       properties:
         email:
           type: string
@@ -1442,7 +2839,6 @@ components:
       - password
     LoginResponse:
       type: object
-      description: Response schema returned by the login endpoint.
       properties:
         access:
           type: string
@@ -1460,6 +2856,15 @@ components:
       - access
       - refresh
       - user
+    LogoutRequest:
+      type: object
+      properties:
+        refresh:
+          type: string
+          minLength: 1
+          description: JWT refresh token to blacklist.
+      required:
+      - refresh
     MarkAllReadResponse:
       type: object
       description: Response for POST /notifications/read-all/
@@ -1489,6 +2894,33 @@ components:
       - course
       - date
       - records
+    Membership:
+      type: object
+      properties:
+        school:
+          allOf:
+          - $ref: '#/components/schemas/_BriefSchool'
+          readOnly: true
+        role:
+          $ref: '#/components/schemas/MembershipRoleEnum'
+        joined_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - joined_at
+      - role
+      - school
+    MembershipRoleEnum:
+      enum:
+      - student
+      - teacher
+      - admin
+      type: string
+      description: |-
+        * `student` - Student
+        * `teacher` - Teacher
+        * `admin` - Admin
     Notification:
       type: object
       properties:
@@ -1570,6 +3002,99 @@ components:
           description: ID of the student to link to this parent account.
       required:
       - child_id
+    ProfileUpdateRequest:
+      type: object
+      properties:
+        first_name:
+          type: string
+          description: First name.
+        last_name:
+          type: string
+          description: Last name.
+        phone:
+          type: string
+          description: Phone number.
+        avatar:
+          type: string
+          format: uri
+          description: URL to avatar image.
+    Quiz:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        course_id:
+          type: integer
+          readOnly: true
+        lesson_id:
+          type: integer
+          nullable: true
+          readOnly: true
+        title:
+          type: string
+          maxLength: 255
+        max_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - course_id
+      - created_at
+      - id
+      - lesson_id
+      - max_score
+      - title
+    QuizAttempt:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        attempt_number:
+          type: integer
+          readOnly: true
+        score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - attempt_number
+      - id
+      - score
+      - submitted_at
+    QuizRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        max_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+      required:
+      - max_score
+      - title
+    QuizSubmitRequest:
+      type: object
+      properties:
+        score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          description: Score for this attempt.
+      required:
+      - score
     RegisterRequest:
       type: object
       properties:
@@ -1590,28 +3115,123 @@ components:
           description: Password (minimum 8 characters).
         role:
           allOf:
-          - $ref: '#/components/schemas/RoleEnum'
+          - $ref: '#/components/schemas/RegisterRoleEnum'
           description: |-
-            User role. Determines what the account can access.
+            User role: student | teacher | parent | school_admin.
 
             * `student` - Student
-            * `teacher` - Teacher
             * `parent` - Parent
+            * `teacher` - Teacher
+            * `school_admin` - School Admin
       required:
       - email
       - password
       - role
       - username
-    RoleEnum:
+    RegisterRoleEnum:
       enum:
       - student
-      - teacher
       - parent
+      - teacher
+      - school_admin
       type: string
       description: |-
         * `student` - Student
-        * `teacher` - Teacher
         * `parent` - Parent
+        * `teacher` - Teacher
+        * `school_admin` - School Admin
+    ResetPasswordRequest:
+      type: object
+      properties:
+        token:
+          type: string
+          format: uuid
+          description: Reset token received by email.
+        new_password:
+          type: string
+          writeOnly: true
+          minLength: 8
+          description: New password (minimum 8 characters).
+      required:
+      - new_password
+      - token
+    School:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        slug:
+          type: string
+          readOnly: true
+          pattern: ^[-a-zA-Z0-9_]+$
+        created_by:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+          description: School admin who created this school.
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - created_by
+      - id
+      - name
+      - slug
+    SchoolCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          description: School name.
+          maxLength: 255
+      required:
+      - name
+    StudentAttendance:
+      type: object
+      properties:
+        student_id:
+          type: integer
+          description: Student user ID.
+        student_name:
+          type: string
+          description: Full name or username of the student.
+        status:
+          type: string
+          nullable: true
+          description: Attendance status or null if not marked.
+      required:
+      - status
+      - student_id
+      - student_name
+    StudentCourse:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        student:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        enrolled_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - enrolled_at
+      - id
+      - is_active
+      - student
     Submission:
       type: object
       properties:
@@ -1659,6 +3279,7 @@ components:
           minLength: 1
           description: The student's answer or work. Plain text, a URL, or structured
             content.
+          maxLength: 10000
       required:
       - content
     SubmissionStatusEnum:
@@ -1669,6 +3290,26 @@ components:
       description: |-
         * `pending` - Pending
         * `graded` - Graded
+    TeacherDashboard:
+      type: object
+      properties:
+        total_students:
+          type: integer
+        total_courses:
+          type: integer
+        assignments_created:
+          type: integer
+        active_assignments:
+          type: integer
+        recent_activity:
+          type: array
+          items: {}
+      required:
+      - active_assignments
+      - assignments_created
+      - recent_activity
+      - total_courses
+      - total_students
     TokenRefresh:
       type: object
       properties:
@@ -1688,6 +3329,15 @@ components:
           minLength: 1
       required:
       - refresh
+    UseCodeRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 1
+          description: Enrollment code token (UUID format, 36 characters).
+      required:
+      - code
     User:
       type: object
       properties:
@@ -1704,13 +3354,20 @@ components:
           description: User's email address.
         role:
           type: string
-          description: 'Account role: student | teacher | parent.'
+          description: 'Account role: student | teacher | parent | school_admin.'
         first_name:
           type: string
-          description: First name (optional).
+          description: First name.
         last_name:
           type: string
-          description: Last name (optional).
+          description: Last name.
+        phone:
+          type: string
+          description: Phone number (optional).
+        avatar:
+          type: string
+          format: uri
+          description: URL to profile avatar image (optional).
         date_joined:
           type: string
           format: date-time
@@ -1737,18 +3394,77 @@ components:
         role:
           type: string
           minLength: 1
-          description: 'Account role: student | teacher | parent.'
+          description: 'Account role: student | teacher | parent | school_admin.'
         first_name:
           type: string
-          minLength: 1
-          description: First name (optional).
+          description: First name.
         last_name:
           type: string
-          minLength: 1
-          description: Last name (optional).
+          description: Last name.
+        phone:
+          type: string
+          description: Phone number (optional).
+        avatar:
+          type: string
+          format: uri
+          description: URL to profile avatar image (optional).
       required:
       - email
       - role
+      - username
+    _BriefSchool:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        slug:
+          type: string
+          maxLength: 255
+          pattern: ^[-a-zA-Z0-9_]+$
+      required:
+      - id
+      - name
+    _BriefUser:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          maxLength: 254
+      required:
+      - email
+      - id
+      - username
+    _BriefUserRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          minLength: 1
+          maxLength: 254
+      required:
+      - email
       - username
   securitySchemes:
     BearerAuth:
@@ -1761,10 +3477,10 @@ components:
       scheme: bearer
       bearerFormat: JWT
 servers:
-- url: http://localhost:8000
-  description: Local development server
 - url: https://edugrow.pythonanywhere.com
   description: Production server
+- url: http://localhost:8000
+  description: Local development server
 tags:
 - name: Auth
   description: Register, login, token refresh, profile

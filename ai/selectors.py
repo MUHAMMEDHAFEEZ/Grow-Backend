@@ -6,9 +6,9 @@ from datetime import timedelta
 
 def get_student_courses(student):
     """Get student's enrolled courses."""
-    from courses.models import Enrollment
+    from courses.models import StudentCourse
 
-    enrollments = Enrollment.objects.filter(
+    enrollments = StudentCourse.objects.filter(
         student=student
     ).select_related('course', 'course__grade')
 

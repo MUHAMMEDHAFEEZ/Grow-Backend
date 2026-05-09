@@ -8,10 +8,14 @@ User = get_user_model()
 
 
 def create_notification(
-    *, recipient_id: int, title: str, body: str, event_type: str
+    *, recipient_id: int, title: str, body: str, event_type: str,
+    related_course_id: int | None = None,
+    related_content_id: int | None = None,
 ) -> Notification:
     return Notification.objects.create(
-        recipient_id=recipient_id, title=title, body=body, event_type=event_type
+        recipient_id=recipient_id, title=title, body=body, event_type=event_type,
+        related_course_id=related_course_id,
+        related_content_id=related_content_id,
     )
 
 

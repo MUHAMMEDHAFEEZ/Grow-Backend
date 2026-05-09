@@ -60,6 +60,8 @@ INSTALLED_APPS = [
     "xp.apps.XpConfig",
     "parent.apps.ParentConfig",
     "ai.apps.AiConfig",
+    "dashboard.apps.DashboardConfig",
+    "tasks.apps.TasksConfig",
 ]
 
 MIDDLEWARE = [

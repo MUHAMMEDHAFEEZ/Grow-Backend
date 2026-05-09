@@ -20,10 +20,18 @@ class NotificationSerializer(serializers.ModelSerializer):
     created_at = serializers.DateTimeField(
         read_only=True, help_text="Timestamp when the notification was generated."
     )
+    related_course = serializers.IntegerField(
+        read_only=True, allow_null=True,
+        help_text="ID of the related course, if applicable.",
+    )
+    related_content_id = serializers.IntegerField(
+        read_only=True, allow_null=True,
+        help_text="ID of the related content item, if applicable.",
+    )
 
     class Meta:
         model = Notification
-        fields = ["id", "title", "body", "event_type", "is_read", "created_at"]
+        fields = ["id", "title", "body", "event_type", "is_read", "created_at", "related_course", "related_content_id"]
         read_only_fields = fields
 
 

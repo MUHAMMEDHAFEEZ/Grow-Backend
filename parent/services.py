@@ -97,14 +97,14 @@ def _compute_study_hours(student_id: int) -> dict:
 def _compute_engagement(student_id: int) -> int:
     from attendance.models import AttendanceRecord
     from submissions.models import Submission
-    from courses.models import Enrollment
+    from courses.models import StudentCourse
     
     attendance_records = AttendanceRecord.objects.filter(student_id=student_id)
     total_attendance = attendance_records.count()
     present_count = attendance_records.filter(present=True).count()
     attendance_rate = (present_count / total_attendance * 100) if total_attendance > 0 else 0
     
-    enrollments = Enrollment.objects.filter(student_id=student_id)
+    enrollments = StudentCourse.objects.filter(student_id=student_id)
     total_courses = enrollments.count()
     
     submissions = Submission.objects.filter(student_id=student_id)

@@ -37,3 +37,11 @@ class SubmissionCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Submission
         fields = ["content"]
+
+
+class TeacherDashboardSerializer(serializers.Serializer):
+    total_students = serializers.IntegerField()
+    total_courses = serializers.IntegerField()
+    assignments_created = serializers.IntegerField()
+    active_assignments = serializers.IntegerField()
+    recent_activity = serializers.ListField()

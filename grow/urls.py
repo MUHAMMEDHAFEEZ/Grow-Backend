@@ -29,4 +29,6 @@ urlpatterns = [
     path("api/v1/xp/", include("xp.urls")),
     path("api/v1/parent/", include("parent.urls")),
     path("api/v1/ai/", include("ai.urls")),
+    path("api/v1/dashboard/", include("dashboard.urls")),
+    path("api/v1/", include("tasks.urls")),
 ]

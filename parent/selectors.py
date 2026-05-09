@@ -41,8 +41,8 @@ def get_student_submissions(student_id: int):
 
 
 def get_student_courses(student_id: int):
-    from courses.models import Enrollment
-    return Enrollment.objects.filter(student_id=student_id).select_related("course")
+    from courses.models import StudentCourse
+    return StudentCourse.objects.filter(student_id=student_id).select_related("course")
 
 
 def get_student_assignments(student_id: int):

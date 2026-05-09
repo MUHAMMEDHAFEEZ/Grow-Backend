@@ -100,6 +100,42 @@ def on_enrollment_created(payload: dict) -> None:
     )
 
 
+def on_lesson_created(payload: dict) -> None:
+    """Notify all enrolled students when a new lesson is published."""
+    from courses.selectors import get_enrolled_student_ids
+    from notifications.services import create_notification
+
+    course_id = payload["course_id"]
+    student_ids = get_enrolled_student_ids(course_id)
+    for sid in student_ids:
+        create_notification(
+            recipient_id=sid,
+            title=f"New Lesson: {payload['lesson_title']}",
+            body=f"A new lesson has been added to '{payload['course_title']}'.",
+            event_type=Events.LESSON_CREATED,
+            related_course_id=course_id,
+            related_content_id=payload.get("lesson_id"),
+        )
+
+
+def on_quiz_created(payload: dict) -> None:
+    """Notify all enrolled students when a new quiz is published."""
+    from courses.selectors import get_enrolled_student_ids
+    from notifications.services import create_notification
+
+    course_id = payload["course_id"]
+    student_ids = get_enrolled_student_ids(course_id)
+    for sid in student_ids:
+        create_notification(
+            recipient_id=sid,
+            title=f"New Quiz: {payload['quiz_title']}",
+            body=f"A new quiz has been added to '{payload['course_title']}'.",
+            event_type=Events.QUIZ_CREATED,
+            related_course_id=course_id,
+            related_content_id=payload.get("quiz_id"),
+        )
+
+
 # ---------------------------------------------------------------------------
 # Registration — called from NotificationsConfig.ready()
 # ---------------------------------------------------------------------------
@@ -110,4 +146,6 @@ def register_handlers() -> None:
     EventBus.subscribe(Events.SUBMISSION_GRADED,  on_submission_graded)
     EventBus.subscribe(Events.ATTENDANCE_MARKED,  on_attendance_marked)
     EventBus.subscribe(Events.ENROLLMENT_CREATED, on_enrollment_created)
+    EventBus.subscribe(Events.LESSON_CREATED,     on_lesson_created)
+    EventBus.subscribe(Events.QUIZ_CREATED,       on_quiz_created)
     logger.info("Notification event handlers registered.")
