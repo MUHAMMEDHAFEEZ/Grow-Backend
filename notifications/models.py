@@ -11,6 +11,8 @@ class Notification(models.Model):
         ENROLLMENT_CREATED  = "enrollment_created",  "Enrollment Created"
         LESSON_CREATED      = "lesson_created",      "Lesson Created"
         QUIZ_CREATED        = "quiz_created",        "Quiz Created"
+        QUIZ_DEADLINE       = "quiz_deadline",       "Quiz Deadline Passed"
+        GRADE_UPDATED       = "grade_updated",       "Grade Updated"
 
     recipient = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -29,6 +31,21 @@ class Notification(models.Model):
         related_name="notifications",
     )
     related_content_id = models.PositiveIntegerField(null=True, blank=True)
+    parent = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="parent_notifications",
+        null=True,
+        blank=True,
+    )
+    student = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="student_notifications",
+        null=True,
+        blank=True,
+    )
+    reference_id = models.PositiveIntegerField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -37,6 +54,13 @@ class Notification(models.Model):
             models.Index(fields=["recipient", "is_read"]),
             models.Index(fields=["related_course"]),
             models.Index(fields=["event_type", "created_at"]),
+            models.Index(fields=["parent", "is_read"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["parent", "event_type", "reference_id"],
+                name="unique_parent_notification",
+            ),
         ]
 
     def __str__(self) -> str:

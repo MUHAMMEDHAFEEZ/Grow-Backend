@@ -19,6 +19,28 @@ def create_notification(
     )
 
 
+def create_parent_notification(
+    *, parent_id: int, student_id: int, title: str, body: str,
+    event_type: str, reference_id: int | None = None,
+) -> Notification | None:
+    if reference_id is not None:
+        exists = Notification.objects.filter(
+            parent_id=parent_id, event_type=event_type, reference_id=reference_id
+        ).exists()
+        if exists:
+            return None
+
+    return Notification.objects.create(
+        recipient_id=parent_id,
+        parent_id=parent_id,
+        student_id=student_id,
+        title=title,
+        body=body,
+        event_type=event_type,
+        reference_id=reference_id,
+    )
+
+
 def mark_read(*, notification_id: int, user: User) -> Notification:
     from core.exceptions import NotFound, PermissionDenied
     try:

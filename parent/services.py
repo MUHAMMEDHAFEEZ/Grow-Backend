@@ -16,12 +16,10 @@ ENGAGEMENT_WEIGHTS = {
 
 
 def get_parent_dashboard(parent: User, student_id: int) -> dict:
-    from accounts.selectors import get_child_for_parent
-    
-    child = get_child_for_parent(parent)
-    if not child or child.id != student_id:
+    from students.models import Student as StudentModel
+    owns = StudentModel.objects.filter(id=student_id, parent=parent).exists()
+    if not owns:
         raise PermissionDenied("You can only view your child's dashboard.")
-    
     return _compute_dashboard(student_id)
 
 

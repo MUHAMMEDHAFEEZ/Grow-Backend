@@ -35,6 +35,81 @@ def register_user(*, username: str, email: str, password: str, role: str) -> Use
     return user
 
 
+def _has_linked_students(user: User) -> bool:
+    from students.models import Student
+    return Student.objects.filter(parent=user).exists()
+
+
+def oauth_login(*, provider: str, access_token: str) -> dict:
+    email = _validate_oauth_token(provider, access_token)
+    if not email:
+        raise ValidationError(f"Invalid {provider} token.")
+
+    user = User.objects.filter(email=email).first()
+    is_new = False
+    if not user:
+        import secrets
+        username = f"{provider}_{email.split('@')[0]}_{secrets.token_hex(4)}"
+        user = User.objects.create_user(
+            username=username, email=email, password=secrets.token_urlsafe(16),
+            role="parent",
+        )
+        is_new = True
+
+    refresh = RefreshToken.for_user(user)
+    return {
+        "token": str(refresh.access_token),
+        "user_id": user.id,
+        "is_first_login": is_new or not _has_linked_students(user),
+    }
+
+
+def _validate_oauth_token(provider: str, access_token: str) -> str | None:
+    if provider == "google":
+        return _validate_google_token(access_token)
+    elif provider == "facebook":
+        return _validate_facebook_token(access_token)
+    return None
+
+
+def _validate_google_token(access_token: str) -> str | None:
+    try:
+        from google.oauth2 import id_token
+        from google.auth.transport import requests
+        import os
+        client_id = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "")
+        info = id_token.verify_oauth2_token(access_token, requests.Request(), client_id)
+        return info.get("email")
+    except Exception:
+        return None
+
+
+def _validate_facebook_token(access_token: str) -> str | None:
+    import requests as http_requests
+    try:
+        resp = http_requests.get(
+            "https://graph.facebook.com/v25.0/me",
+            params={"fields": "id,name,email", "access_token": access_token},
+            timeout=10,
+        )
+        data = resp.json()
+        return data.get("email")
+    except Exception:
+        return None
+
+
+def signup_user(*, username: str, email: str, password: str, role: str = "parent") -> dict:
+    if User.objects.filter(email=email).exists():
+        raise ValidationError("A user with this email already exists.")
+    user = User.objects.create_user(username=username, email=email, password=password, role=role)
+    refresh = RefreshToken.for_user(user)
+    return {
+        "token": str(refresh.access_token),
+        "user_id": user.id,
+        "is_first_login": not _has_linked_students(user),
+    }
+
+
 def login_user(*, email: str, password: str) -> dict:
     try:
         user_obj = User.objects.get(email=email)
@@ -55,6 +130,7 @@ def login_user(*, email: str, password: str) -> dict:
             "email": user.email,
             "role": user.role,
         },
+        "is_first_login": not _has_linked_students(user),
     }
 
 
