@@ -1,8 +1,19 @@
+from django.contrib.auth import get_user_model
 from django.db.models import Avg, Count, Q
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from grades.models import Grade
+
+User = get_user_model()
+
+
+def verify_parent_owns_student(parent: User, student_id: int) -> bool:
+    from students.models import Student
+    return Student.objects.filter(
+        id=student_id,
+        parent=parent,
+    ).exists()
 
 
 def get_student_grades(student_id: int):

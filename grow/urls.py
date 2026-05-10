@@ -5,6 +5,7 @@ from drf_spectacular.views import (
     SpectacularRedocView,
     SpectacularSwaggerView,
 )
+from students.views import get_schools as students_get_schools
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -16,6 +17,8 @@ urlpatterns = [
         name="swagger-ui",
     ),
     path("api/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
+    # ── Public endpoints ──────────────────────────────────────────────────
+    path("api/schools/", students_get_schools, name="api-schools"),
     # ── Legacy / existing ─────────────────────────────────────────────────
     path("accounts/", include("accounts.urls")),
     path("students/", include("students.urls")),

@@ -118,6 +118,40 @@ def on_lesson_created(payload: dict) -> None:
         )
 
 
+def on_quiz_deadline_passed(payload: dict) -> None:
+    from notifications.services import create_parent_notification
+
+    for parent_id in payload.get("parent_ids", []):
+        create_parent_notification(
+            parent_id=parent_id,
+            student_id=payload["student_id"],
+            title=f"Quiz Deadline: {payload['quiz_title']}",
+            body=(
+                f"The quiz '{payload['quiz_title']}' in '{payload['course_title']}' "
+                f"has passed its deadline."
+            ),
+            event_type=Events.QUIZ_DEADLINE_PASSED,
+            reference_id=payload.get("quiz_id"),
+        )
+
+
+def on_grade_updated(payload: dict) -> None:
+    from notifications.services import create_parent_notification
+
+    for parent_id in payload.get("parent_ids", []):
+        create_parent_notification(
+            parent_id=parent_id,
+            student_id=payload["student_id"],
+            title=f"Grade Update: {payload['course_title']}",
+            body=(
+                f"Your child received a score of {payload['score']} "
+                f"in '{payload['course_title']}'."
+            ),
+            event_type=Events.GRADE_UPDATED,
+            reference_id=payload.get("grade_id"),
+        )
+
+
 def on_quiz_created(payload: dict) -> None:
     """Notify all enrolled students when a new quiz is published."""
     from courses.selectors import get_enrolled_student_ids
@@ -148,4 +182,6 @@ def register_handlers() -> None:
     EventBus.subscribe(Events.ENROLLMENT_CREATED, on_enrollment_created)
     EventBus.subscribe(Events.LESSON_CREATED,     on_lesson_created)
     EventBus.subscribe(Events.QUIZ_CREATED,       on_quiz_created)
+    EventBus.subscribe(Events.QUIZ_DEADLINE_PASSED, on_quiz_deadline_passed)
+    EventBus.subscribe(Events.GRADE_UPDATED,        on_grade_updated)
     logger.info("Notification event handlers registered.")

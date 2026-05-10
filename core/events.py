@@ -81,6 +81,10 @@ class Events:
     LESSON_CREATED = "lesson_created"
     QUIZ_CREATED = "quiz_created"
 
+    # ---- 011-parent-role-completion ----
+    QUIZ_DEADLINE_PASSED = "quiz_deadline"
+    GRADE_UPDATED = "grade_updated"
+
 # TODO(analytics): Future analytics pipeline integration
 # - ACTIVITY_LOG_CREATED events can feed into a real-time analytics stream
 # - Consider adding event versioning for schema evolution

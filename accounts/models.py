@@ -23,6 +23,7 @@ class User(AbstractUser):
     email = models.EmailField(unique=True)
     phone = models.CharField(max_length=20, blank=True, default="")
     avatar = models.URLField(blank=True, default="")
+    notifications_enabled = models.BooleanField(default=True)
     # Nullable — set for teachers and students to link them to a school
     school = models.ForeignKey(
         "School",

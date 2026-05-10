@@ -1,60 +1,64 @@
+from drf_spectacular.utils import extend_schema
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework import status
+
+from core.exceptions import Conflict, NotFound, RateLimitExceeded, ValidationError
+
 from .serializers import AddStudentSerializer, DashboardResponseSerializer
-from .models import Student
+from .models import Student, Grade
 from schools.models import School
-from .models import Grade
 from . import services
 from . import selectors
 
 
-
-@api_view(['POST'])
+@extend_schema(
+    tags=["Parent"],
+    summary="Add student with verification code",
+    description=(
+        "Links an existing student to the authenticated parent using "
+        "the student's ID and parent_access_code."
+    ),
+    request=AddStudentSerializer,
+    responses={
+        200: {"description": "Student linked successfully."},
+        400: {"description": "Invalid access code or bad request."},
+        404: {"description": "Student not found."},
+        409: {"description": "Student already linked to another parent."},
+        429: {"description": "Too many failed attempts. Rate limited."},
+    },
+)
+@api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def add_student(request):
-    if request.user.role != 'parent':
+    if request.user.role != "parent":
         return Response({"error": "Only parents can add students"}, status=403)
 
-    serializer = AddStudentSerializer(data=request.data, context={'request': request})
-    
-    if serializer.is_valid():
-        full_name = serializer.validated_data['full_name']
-        grade = serializer.validated_data['grade']
-        school_code = serializer.validated_data.get('school_code')
+    serializer = AddStudentSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=400)
 
-        # البحث عن الطالب الموجود أولاً
-        existing_student = Student.objects.filter(
-            full_name__iexact=full_name,
-            grade=grade,
-            school__school_code=school_code
-        ).first()
+    try:
+        student = services.link_student_to_parent(
+            parent=request.user,
+            student_id=serializer.validated_data["student_id"],
+            parent_access_code=serializer.validated_data["parent_access_code"],
+        )
+    except RateLimitExceeded as exc:
+        return Response({"error": exc.detail}, status=429)
+    except NotFound as exc:
+        return Response({"error": exc.detail}, status=404)
+    except Conflict as exc:
+        return Response({"error": exc.detail}, status=409)
+    except ValidationError as exc:
+        return Response({"error": exc.detail}, status=400)
 
-        if existing_student:
-            # ربط الطالب بالـ Parent إذا لم يكن مربوط
-            if existing_student.parent != request.user:
-                existing_student.parent = request.user
-                existing_student.save()
-            
-            return Response({
-                "message": "Student already exists and has been linked to your account",
-                "student_id": existing_student.student_id,
-                "full_name": existing_student.full_name,
-                "linked": True
-            }, status=200)
-
-        # لو مش موجود → ننشئ طالب جديد
-        student = serializer.save()
-        return Response({
-            "message": "New student created and linked successfully",
-            "student_id": student.student_id,
-            "generated_password": student.generated_password,
-            "full_name": student.full_name,
-            "linked": True
-        }, status=201)
-
-    return Response(serializer.errors, status=400)
+    return Response({
+        "message": "Student linked successfully",
+        "student_id": student.student_id,
+        "full_name": student.full_name,
+    }, status=200)
 
 
 @api_view(['GET'])

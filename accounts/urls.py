@@ -12,16 +12,20 @@ from .views import (
     login,
     logout,
     me,
+    oauth,
     profile,
     register,
     reset_password_view,
     school_view,
+    signup,
 )
 
 urlpatterns = [
     # Auth
     path("register/",         register,               name="auth-register"),
+    path("signup/",           signup,                 name="auth-signup"),
     path("login/",            login,                  name="auth-login"),
+    path("oauth/",            oauth,                  name="auth-oauth"),
     path("logout/",           logout,                 name="auth-logout"),
     path("token/refresh/",    TokenRefreshView.as_view(), name="token-refresh"),
 

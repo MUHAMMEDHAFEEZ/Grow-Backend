@@ -1,12 +1,18 @@
 ﻿# grow Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-05-06
+Auto-generated from all feature plans. Last updated: 2026-05-10
 
 ## Active Technologies
 
 - Python 3.11 / Django 6.0 + Django REST Framework, drf-spectacular, djangorestframework-simplejwt, core.events.EventBus (001-backend-compliance-audit)
 - study_sessions app (StudySession model) + xp app (XPTransaction model) (001-study-session-xp)
 - dashboard app (DashboardInsight, StudentNote, InterventionRecord models) + WeasyPrint (PDF export) + openpyxl (Excel export) (001-school-management-dashboard)
+- google-auth library for Google OAuth token validation + custom Facebook OAuth (Graph API v25.0) for social login (010-auth-parent-flow)
+- accounts app extended: student_id field on User, ActiveChildContext model, school selector endpoint (010-auth-parent-flow)
+- courses app extended: is_published on Quiz, is_active on Lesson (soft delete) (010-auth-parent-flow)
+- notifications app: role-specific event types added (child_grade_changed, quiz_published, etc.); ENROLLMENT_CREATED removed (010-auth-parent-flow)
+- parent app extended: add-child, list-children, switch-child, active-dashboard endpoints (010-auth-parent-flow)
+- parent role completion: LoginHistory model (dynamic streak), Notification extensions (parent/student FK, reference_id, quiz_deadline/grade_updated events), user.notifications_enabled field, student.parent_access_code field; 5 parent services (gpa, xp, attendance, schedule, report); OAuth signup + login; 15 total parent endpoints (011-parent-role-completion)
 
 ## Project Structure
 
@@ -30,4 +36,5 @@ Python 3.11 / Django 6.0: Follow standard conventions
 
 <!-- MANUAL ADDITIONS START -->
 - 008-backend-arch-refactor: Enrollment refactor (Enrollment → StudentCourse + lazy creation); grade FK on Course; CourseProgress, LessonActivity, Quiz, QuizAttempt, ActivityLog models; event-driven tracking updates (LESSON_COMPLETED, QUIZ_SUBMITTED, PROGRESS_MILESTONE_REACHED); 1-min rate limit on progress updates; 12-month log retention; analytics aggregation selectors (courses app); attendance composite indexes + analytics selectors; LessonActivityViewSet at /lessons/{id}/track/ and /lessons/{id}/complete/; QuizViewSet at /quizzes/{id}/attempt/ and /quizzes/{id}/attempts/; ActivityLog auto-logged via EventBus handlers in core/handlers.py
+- 011-parent-role-completion: Full parent role completion — 15 endpoints (auth signup/login/OAuth, add-student with access code, students list, dashboard, analytics, attendance, report+PDF, notifications, settings); LoginHistory model; Notification extensions (parent/student/reference_id); parent_access_code on Student; notifications_enabled on User; 5 service modules in parent/services/; rate limiting on add-student; PDF caching; OAuth integration
 <!-- MANUAL ADDITIONS END -->

@@ -2,6 +2,24 @@ from django.conf import settings
 from django.db import models
 
 
+class LoginHistory(models.Model):
+    student = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="login_history",
+    )
+    login_date = models.DateField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("student", "login_date")
+        indexes = [
+            models.Index(fields=["student", "-login_date"]),
+        ]
+
+    def __str__(self):
+        return f"LoginHistory(student={self.student_id}, date={self.login_date})"
+
+
 class StudySession(models.Model):
     """
     Persistent study session model.

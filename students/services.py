@@ -1,5 +1,84 @@
+from datetime import timedelta
+
+from django.conf import settings
 from django.utils import timezone
+
+from core.exceptions import Conflict, NotFound, RateLimitExceeded, ValidationError
+
 from . import selectors
+from .models import Student, StudentAddRateLimit
+
+
+# ── Rate Limiting ───────────────────────────────────────────────────────────────
+
+MAX_FAILED_ATTEMPTS = 5
+LOCKOUT_SECONDS = 3600
+
+
+def _check_rate_limit(user):
+    now = timezone.now()
+    rate_limit, _ = StudentAddRateLimit.objects.get_or_create(user=user)
+
+    if rate_limit.locked_until and rate_limit.locked_until > now:
+        raise RateLimitExceeded(
+            f"Too many failed attempts. Try again after {rate_limit.locked_until.isoformat()}.",
+            retry_after=rate_limit.locked_until,
+        )
+
+    if rate_limit.window_start and (now - rate_limit.window_start).total_seconds() > LOCKOUT_SECONDS:
+        rate_limit.failed_attempts = 0
+        rate_limit.window_start = now
+        rate_limit.save(update_fields=["failed_attempts", "window_start"])
+
+
+def _record_failed_attempt(user):
+    now = timezone.now()
+    rate_limit, _ = StudentAddRateLimit.objects.get_or_create(user=user)
+
+    if not rate_limit.window_start:
+        rate_limit.window_start = now
+
+    rate_limit.failed_attempts += 1
+
+    if rate_limit.failed_attempts >= MAX_FAILED_ATTEMPTS:
+        rate_limit.locked_until = now + timedelta(seconds=LOCKOUT_SECONDS)
+
+    rate_limit.save(update_fields=["failed_attempts", "window_start", "locked_until"])
+
+
+def _reset_attempts(user):
+    StudentAddRateLimit.objects.filter(user=user).delete()
+
+
+# ── Link Student with Verification ──────────────────────────────────────────────
+
+
+def link_student_to_parent(*, parent, student_id, parent_access_code):
+    _check_rate_limit(parent)
+
+    try:
+        student = Student.objects.get(student_id=student_id)
+    except Student.DoesNotExist:
+        _record_failed_attempt(parent)
+        raise NotFound("Student not found.")
+
+    if not student.parent_access_code:
+        _record_failed_attempt(parent)
+        raise ValidationError("This student does not have an access code set.")
+
+    if student.parent_access_code != parent_access_code:
+        _record_failed_attempt(parent)
+        raise ValidationError("Invalid access code.")
+
+    if student.parent is not None and student.parent != parent:
+        _record_failed_attempt(parent)
+        raise Conflict("This student is already linked to another parent.")
+
+    _reset_attempts(parent)
+    student.parent = parent
+    student.save()
+
+    return student
 
 
 LEVEL_THRESHOLDS = [

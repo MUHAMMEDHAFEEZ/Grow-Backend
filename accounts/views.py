@@ -7,6 +7,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from core.exceptions import NotFound, PermissionDenied, RateLimitExceeded, ValidationError
 from core.permissions import IsParent, IsSchoolAdmin
@@ -37,8 +38,10 @@ from .services import (
     generate_enrollment_codes,
     login_user,
     logout_user,
+    oauth_login,
     reset_password,
     revoke_enrollment_code,
+    signup_user,
     update_profile,
     use_enrollment_code,
 )
@@ -82,6 +85,70 @@ def register(request: Request) -> Response:
     serializer.is_valid(raise_exception=True)
     user = serializer.save()
     return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
+
+
+# ── Parent Signup ──────────────────────────────────────────────────────────────
+
+@extend_schema(
+    tags=["Auth"],
+    summary="Parent signup — register and receive token",
+    description=(
+        "Registers a new **parent** account and returns an auth token immediately. "
+        "`is_first_login` is `true` when the parent has no linked students yet."
+    ),
+    request=RegisterSerializer,
+    responses={
+        201: OpenApiResponse(description="Account created. Returns token + is_first_login."),
+        400: OpenApiResponse(description="Validation error."),
+    },
+    examples=[
+        OpenApiExample(
+            "Parent Signup",
+            value={"username": "ahmed_parent", "email": "ahmed@example.com", "password": "SecurePass123"},
+            request_only=True,
+        ),
+    ],
+)
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def signup(request: Request) -> Response:
+    username = request.data.get("username", "")
+    email = request.data.get("email", "")
+    password = request.data.get("password", "")
+    data = signup_user(username=username, email=email, password=password)
+    return Response(data, status=status.HTTP_201_CREATED)
+
+
+# ── OAuth ──────────────────────────────────────────────────────────────────────
+
+@extend_schema(
+    tags=["Auth"],
+    summary="OAuth login/register via Google or Facebook",
+    description=(
+        "Authenticate using a Google or Facebook access token. "
+        "If the email does not exist, a new parent account is created automatically."
+    ),
+    responses={
+        200: OpenApiResponse(description="Login or registration successful."),
+        400: OpenApiResponse(description="Invalid or expired token."),
+    },
+    examples=[
+        OpenApiExample(
+            "Google OAuth",
+            value={"provider": "google", "access_token": "ya29..."},
+            request_only=True,
+        ),
+    ],
+)
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def oauth(request: Request) -> Response:
+    provider = request.data.get("provider", "")
+    access_token = request.data.get("access_token", "")
+    if not provider or not access_token:
+        return Response({"error": "provider and access_token are required"}, status=status.HTTP_400_BAD_REQUEST)
+    data = oauth_login(provider=provider, access_token=access_token)
+    return Response(data)
 
 
 # ── Login ─────────────────────────────────────────────────────────────────────
