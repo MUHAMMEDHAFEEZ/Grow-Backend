@@ -75,6 +75,25 @@ class LoginResponseSerializer(serializers.Serializer):
         help_text="JWT refresh token. Valid for 7 days. Use to obtain a new access token."
     )
     user = UserSerializer(help_text="Authenticated user details.")
+    is_first_login = serializers.BooleanField(
+        help_text="True when the parent has no linked students yet.",
+    )
+
+
+class SignupResponseSerializer(serializers.Serializer):
+    token = serializers.CharField(help_text="JWT access token.")
+    user_id = serializers.IntegerField(help_text="ID of the created user.")
+    is_first_login = serializers.BooleanField(
+        help_text="True when the parent has no linked students yet.",
+    )
+
+
+class OAuthSerializer(serializers.Serializer):
+    provider = serializers.ChoiceField(
+        choices=["google", "facebook"],
+        help_text="OAuth provider: google or facebook.",
+    )
+    access_token = serializers.CharField(help_text="Access token from the provider.")
 
 
 class LogoutSerializer(serializers.Serializer):

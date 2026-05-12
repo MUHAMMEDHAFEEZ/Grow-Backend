@@ -22,12 +22,14 @@ from .serializers import (
     LoginSerializer,
     LogoutSerializer,
     MembershipSerializer,
+    OAuthSerializer,
     ParentProfileSerializer,
     ProfileUpdateSerializer,
     RegisterSerializer,
     ResetPasswordSerializer,
     SchoolCreateSerializer,
     SchoolSerializer,
+    SignupResponseSerializer,
     UseCodeSerializer,
     UserSerializer,
 )
@@ -98,7 +100,7 @@ def register(request: Request) -> Response:
     ),
     request=RegisterSerializer,
     responses={
-        201: OpenApiResponse(description="Account created. Returns token + is_first_login."),
+        201: OpenApiResponse(response=SignupResponseSerializer, description="Account created. Returns token + is_first_login."),
         400: OpenApiResponse(description="Validation error."),
     },
     examples=[
@@ -112,11 +114,18 @@ def register(request: Request) -> Response:
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def signup(request: Request) -> Response:
-    username = request.data.get("username", "")
-    email = request.data.get("email", "")
-    password = request.data.get("password", "")
-    data = signup_user(username=username, email=email, password=password)
-    return Response(data, status=status.HTTP_201_CREATED)
+    mutable = request.data.copy()
+    if "role" not in mutable:
+        mutable["role"] = "parent"
+    serializer = RegisterSerializer(data=mutable)
+    serializer.is_valid(raise_exception=True)
+    validated = serializer.validated_data
+    resp = signup_user(
+        username=validated["username"],
+        email=validated["email"],
+        password=validated["password"],
+    )
+    return Response(resp, status=status.HTTP_201_CREATED)
 
 
 # ── OAuth ──────────────────────────────────────────────────────────────────────
@@ -128,6 +137,7 @@ def signup(request: Request) -> Response:
         "Authenticate using a Google or Facebook access token. "
         "If the email does not exist, a new parent account is created automatically."
     ),
+    request=OAuthSerializer,
     responses={
         200: OpenApiResponse(description="Login or registration successful."),
         400: OpenApiResponse(description="Invalid or expired token."),
@@ -143,11 +153,9 @@ def signup(request: Request) -> Response:
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def oauth(request: Request) -> Response:
-    provider = request.data.get("provider", "")
-    access_token = request.data.get("access_token", "")
-    if not provider or not access_token:
-        return Response({"error": "provider and access_token are required"}, status=status.HTTP_400_BAD_REQUEST)
-    data = oauth_login(provider=provider, access_token=access_token)
+    serializer = OAuthSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    data = oauth_login(**serializer.validated_data)
     return Response(data)
 
 
@@ -180,6 +188,7 @@ def oauth(request: Request) -> Response:
                 "access": "eyJhbGciOiJIUzI1NiIsInR5...",
                 "refresh": "eyJhbGciOiJIUzI1NiIsInR5...",
                 "user": {"id": 3, "username": "sara_student", "email": "sara@school.edu", "role": "student"},
+                "is_first_login": False,
             },
             response_only=True,
         ),
@@ -188,9 +197,9 @@ def oauth(request: Request) -> Response:
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def login(request: Request) -> Response:
-    email = request.data.get("email", "")
-    password = request.data.get("password", "")
-    data = login_user(email=email, password=password)
+    serializer = LoginSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    data = login_user(**serializer.validated_data)
     return Response(data)
 
 
