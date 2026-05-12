@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema_serializer
 from rest_framework import serializers
 
 
@@ -15,10 +16,12 @@ class StudentLoginSerializer(serializers.Serializer):
     password = serializers.CharField(required=True, write_only=True)
 
 
+@extend_schema_serializer(component_name="StudentTokenRefreshRequest")
 class TokenRefreshSerializer(serializers.Serializer):
     refresh_token = serializers.CharField(required=True)
 
 
+@extend_schema_serializer(component_name="StudentLogoutRequest")
 class LogoutSerializer(serializers.Serializer):
     refresh_token = serializers.CharField(required=True)
 
@@ -32,6 +35,7 @@ class VerifyOtpSerializer(serializers.Serializer):
     otp_code = serializers.CharField(required=True)
 
 
+@extend_schema_serializer(component_name="StudentResetPasswordRequest")
 class ResetPasswordSerializer(serializers.Serializer):
     reset_token = serializers.CharField(required=True)
     new_password = serializers.CharField(required=True, write_only=True, min_length=8)

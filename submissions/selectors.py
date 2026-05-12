@@ -88,7 +88,7 @@ def get_teacher_recent_activity(teacher_id: int, limit: int = 10) -> list:
             'student_name': sub.student.username,
             'assignment_title': sub.assignment.title,
             'status': sub.status,
-            'grade': sub.grade,
+            'grade': float(sub.normalized_score) if sub.normalized_score else None,
             'time_ago': time_ago_str,
         })
 

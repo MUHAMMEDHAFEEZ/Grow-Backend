@@ -46,6 +46,7 @@ def student_course_detail_view(request, course_id):
     tags=["Student Courses"],
     summary="Complete lesson",
     description="Mark a lesson as completed.",
+    request=None,
     responses={200: dict},
 )
 @api_view(["POST"])

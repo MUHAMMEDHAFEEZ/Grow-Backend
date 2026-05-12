@@ -15,6 +15,10 @@ class Assignment(models.Model):
         related_name="created_assignments",
         limit_choices_to={"role": "teacher"},
     )
+    xp_reward = models.PositiveIntegerField(default=0)
+    late_penalty_xp = models.PositiveIntegerField(default=0)
+    teacher_file = models.FileField(upload_to="assignment_files/", blank=True)
+    max_score = models.DecimalField(max_digits=5, decimal_places=2, default=100.00)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

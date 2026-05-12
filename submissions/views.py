@@ -10,7 +10,12 @@ from rest_framework.viewsets import ViewSet
 from core.permissions import IsTeacher
 
 from . import selectors, services
-from .serializers import SubmissionCreateSerializer, SubmissionSerializer, TeacherDashboardSerializer
+from .serializers import (
+    GradeSubmissionSerializer,
+    SubmissionCreateSerializer,
+    SubmissionSerializer,
+    TeacherDashboardSerializer,
+)
 
 
 _COURSE_PK_PARAM = OpenApiParameter(
@@ -141,9 +146,10 @@ class SubmissionViewSet(ViewSet):
         summary="Grade a submission",
         parameters=[_COURSE_PK_PARAM, _ASSIGNMENT_PK_PARAM, _SUBMISSION_PK_PARAM],
         description=(
-            "**Teachers only.** Mark a submission as graded. "
+            "**Teachers only.** Grade a submission with score and feedback. "
             "Only the teacher who owns the course can grade submissions."
         ),
+        request=GradeSubmissionSerializer,
         responses={
             200: SubmissionSerializer,
             403: OpenApiResponse(description="Not a teacher, or you do not own this course."),
@@ -152,7 +158,14 @@ class SubmissionViewSet(ViewSet):
     )
     @action(detail=True, methods=["post"], url_path="grade")
     def grade(self, request: Request, pk: int = None, assignment_pk: int = None, course_pk: int = None) -> Response:
-        submission = services.grade_submission(teacher=request.user, submission_id=pk)
+        serializer = GradeSubmissionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        submission = services.grade_submission(
+            teacher=request.user,
+            submission_id=pk,
+            raw_score=float(serializer.validated_data["raw_score"]),
+            feedback=serializer.validated_data.get("feedback", ""),
+        )
         return Response(SubmissionSerializer(submission).data)
 
 

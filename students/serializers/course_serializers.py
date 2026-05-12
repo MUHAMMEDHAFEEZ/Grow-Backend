@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema_serializer
 from rest_framework import serializers
 
 
@@ -8,6 +9,7 @@ class CourseListSerializer(serializers.Serializer):
     status = serializers.CharField()
 
 
+@extend_schema_serializer(component_name="StudentLesson")
 class LessonSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     title = serializers.CharField()
