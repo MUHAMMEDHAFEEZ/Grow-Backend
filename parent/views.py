@@ -1,5 +1,5 @@
-from drf_spectacular.utils import OpenApiParameter, extend_schema
-from rest_framework import status
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
+from notifications.serializers import NotificationSerializer
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
@@ -383,6 +383,7 @@ def notifications_list(request: Request) -> Response:
     tags=["Parent"],
     summary="Mark notification as read",
     description="Marks a single notification as read. Only the notification owner can do this.",
+    request=None,
     parameters=[
         OpenApiParameter(
             name="id",
@@ -391,7 +392,7 @@ def notifications_list(request: Request) -> Response:
             required=True,
         ),
     ],
-    responses={200: {"description": "Notification marked as read."}},
+    responses={200: OpenApiResponse(response=NotificationSerializer, description="Notification marked as read.")},
 )
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated, IsParent])

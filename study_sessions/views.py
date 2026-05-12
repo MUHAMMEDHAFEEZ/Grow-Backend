@@ -1,14 +1,16 @@
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
-from study_sessions.models import StudySession
 from study_sessions import services
 from study_sessions import selectors
 from study_sessions.serializers import (
-    StudySessionSerializer,
+    SessionEndSerializer,
+    SessionStartSerializer,
     SessionTotalSerializer,
+    StudySessionSerializer,
 )
 
 
@@ -18,8 +20,17 @@ class SessionStartView(APIView):
     Start a new study session.
     """
 
+    serializer_class = SessionStartSerializer
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        tags=["Sessions"],
+        summary="Start a study session",
+        description="Starts a new study session for the authenticated user.",
+        request=SessionStartSerializer,
+        responses={201: StudySessionSerializer},
+        operation_id="session_start",
+    )
     def post(self, request):
         user = request.user
 
@@ -41,8 +52,16 @@ class SessionEndView(APIView):
     End the current study session.
     """
 
+    serializer_class = SessionEndSerializer
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        tags=["Sessions"],
+        summary="End the current study session",
+        description="Ends the active study session and awards XP.",
+        responses={200: StudySessionSerializer},
+        operation_id="session_end",
+    )
     def post(self, request):
         user = request.user
 
@@ -70,8 +89,16 @@ class SessionActiveView(APIView):
     Get the currently active session.
     """
 
+    serializer_class = StudySessionSerializer
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        tags=["Sessions"],
+        summary="Get active session",
+        description="Returns the currently active study session, if any.",
+        responses={200: StudySessionSerializer},
+        operation_id="session_active",
+    )
     def get(self, request):
         session = selectors.get_active_session(request.user)
 
@@ -90,8 +117,16 @@ class SessionTotalView(APIView):
     Get total study time.
     """
 
+    serializer_class = SessionTotalSerializer
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        tags=["Sessions"],
+        summary="Get total study time",
+        description="Returns total study duration and session count.",
+        responses={200: SessionTotalSerializer},
+        operation_id="session_total",
+    )
     def get(self, request):
         totals = selectors.get_total_study_time(request.user)
         serializer = SessionTotalSerializer(totals)
@@ -104,8 +139,16 @@ class SessionListView(APIView):
     List all sessions for the authenticated user.
     """
 
+    serializer_class = StudySessionSerializer
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        tags=["Sessions"],
+        summary="List study sessions",
+        description="Returns paginated list of study sessions.",
+        responses={200: StudySessionSerializer(many=True)},
+        operation_id="session_list",
+    )
     def get(self, request):
         page = int(request.query_params.get("page", 1))
         page_size = int(request.query_params.get("page_size", 20))

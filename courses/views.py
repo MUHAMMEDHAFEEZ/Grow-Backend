@@ -14,10 +14,10 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
-from assignments.views import AssignmentViewSet
 
-from core.permissions import IsSchoolAdmin, IsStudent, IsTeacher
-from submissions.views import SubmissionViewSet
+from assignments.views import AssignmentViewSet  # noqa: F401 - re-exported for api_urls
+from core.permissions import IsStudent, IsTeacher
+from submissions.views import SubmissionViewSet  # noqa: F401 - re-exported for api_urls
 
 from . import selectors, services
 from .models import Course, Quiz as QuizModel
@@ -46,6 +46,7 @@ _COURSE_PK_PARAM = OpenApiParameter(
 
 
 class CourseViewSet(viewsets.ViewSet):
+    serializer_class = CourseSerializer
     permission_classes = [IsAuthenticated]
 
     def get_permissions(self):
@@ -403,13 +404,21 @@ class QuizViewSet(viewsets.ViewSet):
     ViewSet for quiz operations.
     Routes: /quizzes/{id}/attempt/, /quizzes/{id}/attempts/
     """
-
+    serializer_class = QuizSerializer
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
         tags=["Quizzes"],
         summary="Submit a quiz attempt",
         description="**Students only.** Submit a score for a quiz. Attempt number auto-increments.",
+        parameters=[
+            OpenApiParameter(
+                name="id",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.PATH,
+                description="Unique quiz ID.",
+            ),
+        ],
         request=QuizSubmitSerializer,
         responses={
             201: QuizAttemptSerializer,
@@ -433,6 +442,14 @@ class QuizViewSet(viewsets.ViewSet):
         tags=["Quizzes"],
         summary="List quiz attempts",
         description="**Student:** own attempts. **Teacher:** all attempts for their quiz.",
+        parameters=[
+            OpenApiParameter(
+                name="id",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.PATH,
+                description="Unique quiz ID.",
+            ),
+        ],
         responses={200: QuizAttemptSerializer(many=True)},
     )
     @action(detail=True, methods=["get"], permission_classes=[IsAuthenticated])
@@ -457,6 +474,14 @@ class QuizViewSet(viewsets.ViewSet):
     @extend_schema(
         tags=["Quizzes"],
         summary="Get quiz details",
+        parameters=[
+            OpenApiParameter(
+                name="id",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.PATH,
+                description="Unique quiz ID.",
+            ),
+        ],
         responses={200: QuizSerializer},
     )
     def retrieve(self, request: Request, pk: int = None) -> Response:
@@ -515,13 +540,21 @@ class LessonActivityViewSet(viewsets.ViewSet):
     ViewSet for lesson activity tracking.
     Routes: /lessons/{id}/track/, /lessons/{id}/complete/
     """
-
+    serializer_class = LessonActivitySerializer
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
         tags=["Lessons"],
         summary="Track lesson watch time",
         description="**Students only.** Increment watch duration for a lesson.",
+        parameters=[
+            OpenApiParameter(
+                name="id",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.PATH,
+                description="Unique lesson ID.",
+            ),
+        ],
         request=LessonTrackSerializer,
         responses={200: LessonActivitySerializer},
     )
@@ -542,6 +575,14 @@ class LessonActivityViewSet(viewsets.ViewSet):
         tags=["Lessons"],
         summary="Complete a lesson",
         description="**Students only.** Mark a lesson as completed and update course progress.",
+        parameters=[
+            OpenApiParameter(
+                name="id",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.PATH,
+                description="Unique lesson ID.",
+            ),
+        ],
         responses={200: LessonActivitySerializer},
     )
     @action(detail=True, methods=["post"], permission_classes=[IsStudent])
@@ -559,6 +600,7 @@ class LessonViewSet(viewsets.ViewSet):
     Routes: /lessons/{id}/join/, /lessons/{id}/attendance/
     """
 
+    serializer_class = LessonSerializer
     permission_classes = [IsAuthenticated]
 
     @extend_schema(

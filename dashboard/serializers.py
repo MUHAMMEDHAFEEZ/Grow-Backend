@@ -2,6 +2,7 @@
 dashboard/serializers.py — Request/response serialization for dashboard API.
 """
 
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from .models import DashboardInsight, InterventionRecord, StudentNote
@@ -34,6 +35,7 @@ class ClassCardSerializer(serializers.Serializer):
     health_status = serializers.CharField()
     gpa_trend = serializers.CharField()
 
+    @extend_schema_field(serializers.DictField())
     def get_teacher(self, obj):
         return obj.get("teacher", {})
 
@@ -42,9 +44,24 @@ class ClassDetailSerializer(serializers.Serializer):
     class Meta:
         ref_name = "ClassDetail"
 
+    class_info = serializers.DictField(source="class")
+    student_distribution = serializers.DictField()
+    leaderboard = serializers.ListField()
+    gpa_trend_6m = serializers.ListField()
+    teacher_performance = serializers.DictField()
+
 
 class StudentProfileSerializer(serializers.Serializer):
-    pass
+    student = serializers.DictField()
+    academic_history = serializers.DictField()
+    interventions = serializers.ListField()
+    notes = serializers.ListField()
+
+
+class DashboardOverviewSerializer(serializers.Serializer):
+    kpis = serializers.DictField()
+    alerts = serializers.ListField()
+    charts = serializers.DictField()
 
 
 class ReportSummarySerializer(serializers.Serializer):
@@ -68,6 +85,7 @@ class StudentNoteSerializer(serializers.ModelSerializer):
         fields = ["id", "author", "note", "created_at", "updated_at"]
         read_only_fields = ["id", "author", "created_at", "updated_at"]
 
+    @extend_schema_field(serializers.CharField())
     def get_author(self, obj):
         return obj.author.username if obj.author else "Unknown"
 

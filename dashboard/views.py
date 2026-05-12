@@ -4,12 +4,13 @@ dashboard/views.py — API endpoints for the dashboard.
 No business logic here — delegates to selectors.py and services.py.
 """
 
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .permissions import IsSchoolAdmin, IsTeacherOfStudent, IsTeacherOrSchoolAdmin
+from .permissions import IsSchoolAdmin, IsTeacherOrSchoolAdmin
 from .selectors import (
     get_class_detail,
     get_classes_list,
@@ -19,8 +20,15 @@ from .selectors import (
     get_student_profile,
 )
 from .serializers import (
+    ClassCardSerializer,
+    ClassDetailSerializer,
+    DashboardInsightSerializer,
+    DashboardOverviewSerializer,
+    ReportSummarySerializer,
+    RiskSummarySerializer,
     StudentNoteCreateSerializer,
     StudentNoteSerializer,
+    StudentProfileSerializer,
 )
 from .services import (
     add_student_note,
@@ -30,6 +38,12 @@ from .services import (
 )
 
 
+@extend_schema(
+    tags=["Dashboard"],
+    summary="Get dashboard overview",
+    description="Returns KPIs, active alerts, and chart data for the dashboard overview page.",
+    responses={200: DashboardOverviewSerializer},
+)
 @api_view(["GET"])
 @permission_classes([IsAuthenticated, IsTeacherOrSchoolAdmin])
 def dashboard_overview(request):
@@ -39,6 +53,13 @@ def dashboard_overview(request):
     return Response(data)
 
 
+@extend_schema(
+    tags=["Dashboard"],
+    summary="List classes",
+    description="Returns paginated list of classes with health metrics.",
+    responses={200: ClassCardSerializer(many=True)},
+    operation_id="dashboard_classes_list",
+)
 @api_view(["GET"])
 @permission_classes([IsAuthenticated, IsTeacherOrSchoolAdmin])
 def classes_list(request):
@@ -51,6 +72,13 @@ def classes_list(request):
     return Response(data)
 
 
+@extend_schema(
+    tags=["Dashboard"],
+    summary="Get class detail",
+    description="Returns full class analytics: distribution, leaderboard, trends, teacher performance.",
+    responses={200: ClassDetailSerializer},
+    operation_id="dashboard_classes_retrieve",
+)
 @api_view(["GET"])
 @permission_classes([IsAuthenticated, IsTeacherOrSchoolAdmin])
 def class_detail(request, class_id):
@@ -63,6 +91,13 @@ def class_detail(request, class_id):
     return Response(data)
 
 
+@extend_schema(
+    tags=["Dashboard"],
+    summary="Get student profile",
+    description="Returns student profile with academic history, risk score, interventions, and notes.",
+    responses={200: StudentProfileSerializer},
+    operation_id="dashboard_student_profile",
+)
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def student_profile(request, student_id):
@@ -75,6 +110,14 @@ def student_profile(request, student_id):
     return Response(data)
 
 
+@extend_schema(
+    tags=["Dashboard"],
+    summary="Create student note",
+    description="Add a note to a student's profile.",
+    request=StudentNoteCreateSerializer,
+    responses={201: StudentNoteSerializer},
+    operation_id="dashboard_student_note_create",
+)
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def student_note_create(request, student_id):
@@ -94,6 +137,13 @@ def student_note_create(request, student_id):
     return Response(StudentNoteSerializer(note).data, status=status.HTTP_201_CREATED)
 
 
+@extend_schema(
+    tags=["Dashboard"],
+    summary="Get report summary",
+    description="Returns filtered report with period comparison and insights.",
+    responses={200: ReportSummarySerializer},
+    operation_id="dashboard_report_view",
+)
 @api_view(["GET"])
 @permission_classes([IsAuthenticated, IsSchoolAdmin])
 def report_view(request):
@@ -108,6 +158,13 @@ def report_view(request):
     return Response(data)
 
 
+@extend_schema(
+    tags=["Dashboard"],
+    summary="Export report",
+    description="Export report as PDF or XLSX file.",
+    responses={200: OpenApiResponse(description="PDF or XLSX file")},
+    operation_id="dashboard_report_export",
+)
 @api_view(["GET"])
 @permission_classes([IsAuthenticated, IsSchoolAdmin])
 def report_export(request):
@@ -140,6 +197,13 @@ def report_export(request):
         return response
 
 
+@extend_schema(
+    tags=["Dashboard"],
+    summary="Get risk summary",
+    description="Returns risk tier breakdown and top at-risk students.",
+    responses={200: RiskSummarySerializer},
+    operation_id="dashboard_risk_summary",
+)
 @api_view(["GET"])
 @permission_classes([IsAuthenticated, IsTeacherOrSchoolAdmin])
 def risk_summary(request):
@@ -147,6 +211,14 @@ def risk_summary(request):
     return Response(data)
 
 
+@extend_schema(
+    tags=["Dashboard"],
+    summary="Dismiss insight",
+    description="Dismiss a dashboard insight/alert.",
+    request=None,
+    responses={200: OpenApiResponse(response=DashboardInsightSerializer, description="Insight dismissed.")},
+    operation_id="dashboard_insight_dismiss",
+)
 @api_view(["POST"])
 @permission_classes([IsAuthenticated, IsTeacherOrSchoolAdmin])
 def insight_dismiss(request, insight_id):
