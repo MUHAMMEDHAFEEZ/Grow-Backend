@@ -36,7 +36,7 @@ class XPAddView(APIView):
         serializer = XPAddSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        xp_amount = serializer.validated_data["xp"]
+        xp_amount = serializer.validated_data["xp_amount"]
         source = serializer.validated_data["source"]
 
         try:

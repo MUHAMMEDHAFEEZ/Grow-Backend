@@ -16,18 +16,18 @@ def get_student_xp(student):
 
     total_xp = XPTransaction.objects.filter(
         student=student
-    ).aggregate(total=Coalesce(Sum('xp'), 0))['total'] or 0
+    ).aggregate(total=Coalesce(Sum('xp_amount'), 0))['total'] or 0
 
     today_xp = XPTransaction.objects.filter(
         student=student,
         created_at__gte=today_start
-    ).aggregate(total=Coalesce(Sum('xp'), 0))['total'] or 0
+    ).aggregate(total=Coalesce(Sum('xp_amount'), 0))['total'] or 0
 
     yesterday_xp = XPTransaction.objects.filter(
         student=student,
         created_at__gte=yesterday_start,
         created_at__lt=today_start
-    ).aggregate(total=Coalesce(Sum('xp'), 0))['total'] or 0
+    ).aggregate(total=Coalesce(Sum('xp_amount'), 0))['total'] or 0
 
     return {
         'total': total_xp,
@@ -141,7 +141,7 @@ def get_leaderboard(limit=10):
         'student__id',
         'student__student_profile__full_name'
     ).annotate(
-        total_xp=Sum('xp')
+        total_xp=Sum('xp_amount')
     ).order_by('-total_xp')[:limit]
 
     return list(top_students)
@@ -156,8 +156,8 @@ def get_student_rank(student):
             WITH xp_ranks AS (
                 SELECT 
                     student_id,
-                    SUM(xp) as total_xp,
-                    ROW_NUMBER() OVER (ORDER BY SUM(xp) DESC) as rank
+                    SUM(xp_amount) as total_xp,
+                    ROW_NUMBER() OVER (ORDER BY SUM(xp_amount) DESC) as rank
                 FROM xp_xptransaction
                 WHERE student_id = %s
                 GROUP BY student_id
@@ -171,13 +171,13 @@ def get_student_rank(student):
 
     student_xp = XPTransaction.objects.filter(
         student=student
-    ).aggregate(total=Coalesce(Sum('xp'), 0))['total'] or 0
+    ).aggregate(total=Coalesce(Sum('xp_amount'), 0))['total'] or 0
 
     if student_xp == 0:
         return 0
 
     higher_count = XPTransaction.objects.values('student').annotate(
-        total_xp=Sum('xp')
+        total_xp=Sum('xp_amount')
     ).filter(total_xp__gt=student_xp).count()
 
     return higher_count + 1
@@ -201,3 +201,175 @@ def get_upcoming_session(student):
         }
 
     return None
+
+
+# ── Base Selectors (Student Role Backend) ──────────────────────────────────────
+
+
+def get_courses_for_student(student, filter_status="all"):
+    from courses.models import Course, StudentCourse, CourseProgress
+
+    enrollments = StudentCourse.objects.filter(student=student).select_related("course", "course__grade")
+    course_ids = [e.course_id for e in enrollments]
+
+    courses = Course.objects.filter(id__in=course_ids).prefetch_related("lessons")
+
+    if filter_status == "inprogress":
+        completed_ids = CourseProgress.objects.filter(
+            student=student, completion_status="completed"
+        ).values_list("course_id", flat=True)
+        courses = courses.exclude(id__in=completed_ids)
+    elif filter_status == "completed":
+        completed_ids = CourseProgress.objects.filter(
+            student=student, completion_status="completed"
+        ).values_list("course_id", flat=True)
+        courses = courses.filter(id__in=completed_ids)
+
+    result = []
+    for course in courses:
+        progress = CourseProgress.objects.filter(student=student, course=course).first()
+        result.append({
+            "id": course.id,
+            "name": course.title,
+            "completion_percentage": float(progress.progress_percentage) if progress else 0.0,
+            "status": progress.completion_status if progress else "not_started",
+        })
+    return result
+
+
+def get_course_detail(course_id, student):
+    from courses.models import Course, Lesson
+    from quizzes.models import Quiz
+    from assignments.models import Assignment
+    from students.models import LessonCompletion
+
+    course = Course.objects.prefetch_related("lessons").get(id=course_id)
+    lessons = Lesson.objects.filter(course=course).order_by("order", "created_at")
+    quizzes = Quiz.objects.filter(course=course)
+    assignments = Assignment.objects.filter(course=course)
+
+    lesson_data = []
+    for lesson in lessons:
+        is_completed = LessonCompletion.objects.filter(student=student, lesson=lesson).exists()
+        lesson_data.append({
+            "id": lesson.id,
+            "title": lesson.title,
+            "is_completed": is_completed,
+        })
+
+    total_lessons = lessons.count()
+    completed_lessons = sum(1 for l in lesson_data if l["is_completed"])
+    completion_pct = (completed_lessons / total_lessons * 100) if total_lessons > 0 else 0
+
+    return {
+        "course_name": course.title,
+        "completion_percentage": round(completion_pct, 2),
+        "lessons": lesson_data,
+        "quizzes": list(quizzes.values("id", "title")),
+        "assignments": list(assignments.values("id", "title", "due_date")),
+    }
+
+
+def get_quiz_with_questions(quiz_id, student):
+    from courses.models import Quiz, QuizAttempt
+
+    quiz = Quiz.objects.prefetch_related("questions").get(id=quiz_id)
+    has_attempt = QuizAttempt.objects.filter(student=student, quiz=quiz).exists()
+
+    return {
+        "id": quiz.id,
+        "title": quiz.title,
+        "questions": list(quiz.questions.values("id", "text", "options")),
+        "has_attempt": has_attempt,
+    }
+
+
+def get_assignment_detail(assignment_id, student):
+    from assignments.models import Assignment
+
+    assignment = Assignment.objects.select_related("course").get(id=assignment_id)
+    submission = Submission.objects.filter(student=student, assignment=assignment).first()
+
+    return {
+        "id": assignment.id,
+        "title": assignment.title,
+        "deadline": assignment.due_date,
+        "teacher_file_url": None,
+        "submission_status": submission.status if submission else "pending",
+    }
+
+
+def get_past_due_items(student):
+    from assignments.models import Assignment
+
+    now = timezone.now()
+    assignments = Assignment.objects.filter(
+        course__grade=student.grade,
+        due_date__lt=now,
+    ).exclude(
+        submissions__student=student,
+        submissions__status="submitted",
+    ).select_related("course")
+
+    return [
+        {
+            "id": a.id,
+            "title": a.title,
+            "type": "assignment",
+            "deadline": a.due_date,
+        }
+        for a in assignments
+    ]
+
+
+def get_todays_missions(student):
+    from assignments.models import Assignment
+
+    now = timezone.now()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_end = today_start + timezone.timedelta(days=1)
+
+    assignments = Assignment.objects.filter(
+        course__grade=student.grade,
+        due_date__gte=today_start,
+        due_date__lt=today_end,
+    ).select_related("course")
+
+    result = []
+    for a in assignments:
+        submission = Submission.objects.filter(student=student, assignment=a).first()
+        result.append({
+            "id": a.id,
+            "title": a.title,
+            "type": "assignment",
+            "xp_reward": 50,
+            "is_completed": submission.status == "submitted" if submission else False,
+        })
+    return result
+
+
+def get_student_settings(student):
+    from courses.models import StudentCourse
+
+    total_xp = XPTransaction.objects.filter(student=student).aggregate(
+        total=Coalesce(Sum("xp_amount"), 0)
+    )["total"] or 0
+
+    courses_count = StudentCourse.objects.filter(student=student).count()
+
+    return {
+        "full_name": student.full_name,
+        "student_id": student.student_id,
+        "school": student.school.name if student.school else None,
+        "grade": student.grade.name if student.grade else None,
+        "total_xp": total_xp,
+        "courses_count": courses_count,
+    }
+
+
+def get_notifications(student, page=1, page_size=20):
+    from students.models import StudentNotification
+
+    queryset = StudentNotification.objects.filter(student=student)
+    offset = (page - 1) * page_size
+    return list(queryset.order_by("-created_at")[offset : offset + page_size])

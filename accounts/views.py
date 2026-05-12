@@ -455,10 +455,7 @@ def school_view(request: Request) -> Response:
 
 # ── Enrollment Code Endpoints ─────────────────────────────────────────────────
 
-from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.filters import OrderingFilter
 
 
 @extend_schema(

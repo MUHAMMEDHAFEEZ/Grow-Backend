@@ -64,6 +64,7 @@ def _compute_gpa(student_id: int) -> dict:
 
 
 def _compute_study_hours(student_id: int) -> dict:
+    from django.db.models import Sum as _Sum
     from study_sessions.models import StudySession
     
     week_ago = timezone.now() - timedelta(days=7)
@@ -71,7 +72,7 @@ def _compute_study_hours(student_id: int) -> dict:
     total_seconds = StudySession.objects.filter(
         student_id=student_id,
         ended_at__isnull=False
-    ).aggregate(total=models.Sum("duration"))["total"] or 0
+    ).aggregate(total=_Sum("duration"))["total"] or 0
     
     total_hours = total_seconds / 3600 if total_seconds else 0
     
@@ -79,7 +80,7 @@ def _compute_study_hours(student_id: int) -> dict:
         student_id=student_id,
         ended_at__isnull=False,
         started_at__gte=week_ago
-    ).aggregate(total=models.Sum("duration"))["total"] or 0
+    ).aggregate(total=_Sum("duration"))["total"] or 0
     
     weekly_hours = weekly_seconds / 3600 if weekly_seconds else 0
     

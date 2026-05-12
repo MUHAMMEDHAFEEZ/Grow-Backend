@@ -24,6 +24,7 @@ urlpatterns = [
     path("students/", include("students.urls")),
     # ── API v1 ────────────────────────────────────────────────────────────
     path("api/v1/auth/", include("accounts.urls")),
+    path("api/v1/auth/student/", include("students.urls.auth_urls")),
     path("api/v1/", include("grow.api_urls")),  # courses + assignments + submissions
     path("api/v1/", include("grades.urls")),
     path("api/v1/", include("attendance.urls")),
@@ -32,6 +33,7 @@ urlpatterns = [
     path("api/v1/xp/", include("xp.urls")),
     path("api/v1/parent/", include("parent.urls")),
     path("api/v1/ai/", include("ai.urls")),
+    path("api/v1/student/", include("students.urls.student_urls")),
     path("api/v1/dashboard/", include("dashboard.urls")),
     path("api/v1/", include("tasks.urls")),
 ]

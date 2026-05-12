@@ -5,8 +5,8 @@ from django.utils import timezone
 
 from core.exceptions import Conflict, NotFound, RateLimitExceeded, ValidationError
 
-from . import selectors
-from .models import Student, StudentAddRateLimit
+from students import selectors
+from students.models import Student, StudentAddRateLimit
 
 
 # ── Rate Limiting ───────────────────────────────────────────────────────────────
