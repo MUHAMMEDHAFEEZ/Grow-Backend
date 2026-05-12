@@ -50,15 +50,8 @@ def add_xp(student, xp_amount, source):
 
 
 def award_study_session_xp(session):
-    """
-    Award XP for a completed study session.
-    Called when a session ends.
+    from xp.models import XPTransaction
 
-    Args:
-        session: StudySession instance
-
-    Returns the XPTransaction or None if no XP earned.
-    """
     if session.xp_earned > 0:
         return add_xp(
             student=session.student,

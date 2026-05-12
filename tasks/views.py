@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 from core.permissions import IsStudent, IsTeacher
 
 from . import selectors, services
+from .models import StudentTask
 from .serializers import StudentTaskSerializer
 
 
@@ -74,8 +75,6 @@ class CompleteTaskView(APIView):
             )
         except Exception:
             ...
-        # Use model-based approach for PK lookup
-        from .models import StudentTask
         try:
             task = StudentTask.objects.get(pk=pk)
         except StudentTask.DoesNotExist:
