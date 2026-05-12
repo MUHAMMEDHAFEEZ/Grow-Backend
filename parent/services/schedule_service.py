@@ -35,10 +35,6 @@ def get_upcoming_schedule(student_id: int) -> list:
             "course": a.course.title if a.course else "",
         })
 
-    lessons = (
-        Quiz.objects.none()
-    )
-
     items.sort(key=lambda x: x["date"])
 
     return items[:10]

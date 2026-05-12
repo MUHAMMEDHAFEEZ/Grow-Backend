@@ -9,7 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from assignments.models import Assignment
-from students.permissions import IsStudent
+from core.permissions import IsStudent
 from students.selectors import get_past_due_items, get_todays_missions
 from students.serializers.task_serializers import TasksResponseSerializer
 from students.services.daily_master_service import get_or_create_daily_log

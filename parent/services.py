@@ -1,9 +1,12 @@
-from django.contrib.auth import get_user_model
-from django.db.models import Avg
-from django.utils import timezone
 from datetime import timedelta
 
+from django.contrib.auth import get_user_model
+from django.db.models import Sum
+from django.utils import timezone
+
 from core.exceptions import PermissionDenied
+
+from .services.gpa_service import get_cumulative_gpa
 
 User = get_user_model()
 
@@ -25,7 +28,7 @@ def get_parent_dashboard(parent: User, student_id: int) -> dict:
 
 def _compute_dashboard(student_id: int) -> dict:
     return {
-        "gpa": _compute_gpa(student_id),
+        "gpa": get_cumulative_gpa(student_id),
         "study_hours": _compute_study_hours(student_id),
         "engagement": _compute_engagement(student_id),
         "subjects": _compute_subject_performance(student_id),
@@ -33,38 +36,7 @@ def _compute_dashboard(student_id: int) -> dict:
     }
 
 
-def _compute_gpa(student_id: int) -> dict:
-    from grades.models import Grade
-    from submissions.models import Submission
-    
-    thirty_days_ago = timezone.now() - timedelta(days=30)
-    
-    all_grades = Grade.objects.filter(
-        submission__student_id=student_id,
-        submission__status="graded"
-    )
-    
-    current_avg = all_grades.aggregate(avg=Avg("score"))["avg"] or 0.0
-    
-    past_grades = Grade.objects.filter(
-        submission__student_id=student_id,
-        submission__status="graded",
-        graded_at__lt=thirty_days_ago
-    )
-    past_avg = past_grades.aggregate(avg=Avg("score"))["avg"] or 0.0
-    
-    change = 0.0
-    if past_avg > 0:
-        change = float(current_avg) - float(past_avg)
-    
-    return {
-        "value": float(current_avg),
-        "change": round(change, 1),
-    }
-
-
 def _compute_study_hours(student_id: int) -> dict:
-    from django.db.models import Sum as _Sum
     from study_sessions.models import StudySession
     
     week_ago = timezone.now() - timedelta(days=7)
@@ -72,7 +44,7 @@ def _compute_study_hours(student_id: int) -> dict:
     total_seconds = StudySession.objects.filter(
         student_id=student_id,
         ended_at__isnull=False
-    ).aggregate(total=_Sum("duration"))["total"] or 0
+    ).aggregate(total=Sum("duration"))["total"] or 0
     
     total_hours = total_seconds / 3600 if total_seconds else 0
     
@@ -80,7 +52,7 @@ def _compute_study_hours(student_id: int) -> dict:
         student_id=student_id,
         ended_at__isnull=False,
         started_at__gte=week_ago
-    ).aggregate(total=_Sum("duration"))["total"] or 0
+    ).aggregate(total=Sum("duration"))["total"] or 0
     
     weekly_hours = weekly_seconds / 3600 if weekly_seconds else 0
     

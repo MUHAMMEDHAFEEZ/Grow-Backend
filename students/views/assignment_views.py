@@ -11,7 +11,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from assignments.models import Assignment
-from students.permissions import IsStudent
+from core.permissions import IsStudent
 from students.selectors import get_assignment_detail
 from students.serializers.assignment_serializers import (
     AssignmentDetailSerializer,
