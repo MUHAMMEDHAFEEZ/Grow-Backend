@@ -1,6 +1,6 @@
 ﻿# grow Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-05-10
+Auto-generated from all feature plans. Last updated: 2026-05-12
 
 ## Active Technologies
 
@@ -37,4 +37,5 @@ Python 3.11 / Django 6.0: Follow standard conventions
 <!-- MANUAL ADDITIONS START -->
 - 008-backend-arch-refactor: Enrollment refactor (Enrollment → StudentCourse + lazy creation); grade FK on Course; CourseProgress, LessonActivity, Quiz, QuizAttempt, ActivityLog models; event-driven tracking updates (LESSON_COMPLETED, QUIZ_SUBMITTED, PROGRESS_MILESTONE_REACHED); 1-min rate limit on progress updates; 12-month log retention; analytics aggregation selectors (courses app); attendance composite indexes + analytics selectors; LessonActivityViewSet at /lessons/{id}/track/ and /lessons/{id}/complete/; QuizViewSet at /quizzes/{id}/attempt/ and /quizzes/{id}/attempts/; ActivityLog auto-logged via EventBus handlers in core/handlers.py
 - 011-parent-role-completion: Full parent role completion — 15 endpoints (auth signup/login/OAuth, add-student with access code, students list, dashboard, analytics, attendance, report+PDF, notifications, settings); LoginHistory model; Notification extensions (parent/student/reference_id); parent_access_code on Student; notifications_enabled on User; 5 service modules in parent/services/; rate limiting on add-student; PDF caching; OAuth integration
+- 012-fix-swagger-schema: drf-spectacular/OpenAPI schema cleanup — eliminated "unable to guess serializer" warnings from 20+ views, fixed path parameter type derivation, resolved operationId collisions; added serializer_class + @extend_schema annotations across accounts, ai, courses, dashboard, parent, study_sessions, xp apps
 <!-- MANUAL ADDITIONS END -->

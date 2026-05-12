@@ -2,15 +2,14 @@ from drf_spectacular.utils import extend_schema
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
-from rest_framework import status
 
+from accounts.serializers import SchoolSerializer
 from core.exceptions import Conflict, NotFound, RateLimitExceeded, ValidationError
 
 from .serializers import AddStudentSerializer, DashboardResponseSerializer
 from .models import Student, Grade
 from schools.models import School
 from . import services
-from . import selectors
 
 
 @extend_schema(
@@ -75,6 +74,13 @@ def check_has_students(request):
 
 
 # APIs جديدة للـ React (هتحتاجها في Add Student)
+@extend_schema(
+    tags=["Schools"],
+    summary="List all schools",
+    description="Returns a list of all schools with their names, codes, and types.",
+    responses={200: SchoolSerializer(many=True)},
+    operation_id="schools_list",
+)
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_schools(request):

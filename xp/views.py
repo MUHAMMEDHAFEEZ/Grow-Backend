@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -20,8 +21,17 @@ class XPAddView(APIView):
     Used by other apps (assignments, quizzes, attendance).
     """
 
+    serializer_class = XPAddSerializer
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        tags=["XP"],
+        summary="Add XP",
+        description="Add XP to the authenticated student's account.",
+        request=XPAddSerializer,
+        responses={201: XPTransactionSerializer},
+        operation_id="xp_add",
+    )
     def post(self, request):
         serializer = XPAddSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -52,8 +62,16 @@ class XPTotalView(APIView):
     Get total XP for the authenticated student.
     """
 
+    serializer_class = XPTotalSerializer
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        tags=["XP"],
+        summary="Get total XP",
+        description="Returns total XP, transaction count, and breakdown by source.",
+        responses={200: XPTotalSerializer},
+        operation_id="xp_total",
+    )
     def get(self, request):
         totals = services.get_total_xp(request.user)
         breakdown = services.get_xp_breakdown(request.user)
@@ -74,8 +92,16 @@ class XPHistoryView(APIView):
     Get XP transaction history.
     """
 
+    serializer_class = XPHistorySerializer
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        tags=["XP"],
+        summary="Get XP history",
+        description="Returns paginated XP transaction history with optional source filter.",
+        responses={200: XPHistorySerializer(many=True)},
+        operation_id="xp_history",
+    )
     def get(self, request):
         page = int(request.query_params.get("page", 1))
         page_size = int(request.query_params.get("page_size", 20))

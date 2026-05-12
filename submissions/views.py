@@ -31,6 +31,7 @@ class SubmissionViewSet(ViewSet):
     """
     Nested under /courses/{course_pk}/assignments/{assignment_pk}/submissions/
     """
+    serializer_class = SubmissionSerializer
     permission_classes = [IsAuthenticated]
 
     def get_permissions(self):

@@ -1,3 +1,4 @@
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -7,6 +8,17 @@ from ai.serializers import ChatRequestSerializer, ChatResponseSerializer
 from ai import services
 
 
+@extend_schema(
+    tags=["AI"],
+    summary="Chat with AI assistant",
+    description="Send a message to the AI assistant with student context for personalized help.",
+    request=ChatRequestSerializer,
+    responses={
+        200: OpenApiResponse(response=ChatResponseSerializer, description="AI response."),
+        400: OpenApiResponse(description="Invalid request."),
+        404: OpenApiResponse(description="Student profile not found."),
+    },
+)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def chat(request):
