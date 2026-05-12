@@ -1,12 +1,17 @@
+from django.http import HttpResponse
+from django.utils import timezone
+
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
+from notifications.models import Notification
 from notifications.serializers import NotificationSerializer
+from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from core.exceptions import Conflict, NotFound, RateLimitExceeded, ValidationError
+from core.exceptions import Conflict, RateLimitExceeded, ValidationError
 from core.permissions import IsParent
 
 from students.models import Student
@@ -36,7 +41,7 @@ from .services.report_service import (
     get_monthly_report,
 )
 from .services.schedule_service import get_upcoming_schedule
-from .services.xp_service import get_total_xp
+from .services.xp_service import get_monthly_xp, get_total_xp
 
 
 class DashboardView(APIView):
@@ -193,7 +198,6 @@ def analytics(request: Request, student_id: int) -> Response:
             status=400,
         )
 
-    from django.utils import timezone
     now = timezone.now()
     year = now.year
 
@@ -206,8 +210,7 @@ def analytics(request: Request, student_id: int) -> Response:
     dashboard = services._compute_dashboard(student_id)
     study_hours_data = []
     for month in range(1, now.month + 1):
-        from .services.xp_service import get_monthly_xp as get_xp_for_month
-        xp_data = get_xp_for_month(student_id, year, month)
+        xp_data = get_monthly_xp(student_id, year, month)
         study_hours_data.append({
             "period": f"Month {month}",
             "hours": xp_data["total"] / 10.0,
@@ -248,7 +251,6 @@ def attendance(request: Request, student_id: int) -> Response:
     if not verify_parent_owns_student(request.user, student_id):
         return Response({"error": "You can only view your child's attendance."}, status=403)
 
-    from django.utils import timezone
     now = timezone.now()
 
     return Response(AttendanceSerializer({
@@ -335,7 +337,6 @@ def report_print(request: Request, student_id: int) -> Response:
     if pdf is None:
         return Response({"error": "Failed to generate PDF."}, status=500)
 
-    from django.http import HttpResponse
     return HttpResponse(pdf, content_type="application/pdf")
 
 
@@ -359,8 +360,6 @@ def report_print(request: Request, student_id: int) -> Response:
 @api_view(["GET"])
 @permission_classes([IsAuthenticated, IsParent])
 def notifications_list(request: Request) -> Response:
-    from notifications.models import Notification
-
     qs = Notification.objects.filter(parent=request.user).order_by("-created_at")
 
     page = int(request.query_params.get("page", 1))
@@ -397,13 +396,10 @@ def notifications_list(request: Request) -> Response:
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated, IsParent])
 def notification_read(request: Request, notification_id: int) -> Response:
-    from notifications.models import Notification
-    from core.exceptions import NotFound
-
     try:
         notif = Notification.objects.get(pk=notification_id, parent=request.user)
     except Notification.DoesNotExist:
-        raise NotFound("Notification not found.")
+        return Response({"error": "Notification not found."}, status=status.HTTP_404_NOT_FOUND)
 
     notif.is_read = True
     notif.save(update_fields=["is_read"])

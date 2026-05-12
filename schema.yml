@@ -819,13 +819,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/StudentLoginRequest'
+              $ref: '#/components/schemas/StudentLoginRequestRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/StudentLoginRequest'
+              $ref: '#/components/schemas/StudentLoginRequestRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/StudentLoginRequest'
+              $ref: '#/components/schemas/StudentLoginRequestRequest'
         required: true
       security:
       - jwtAuth: []
@@ -836,8 +836,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: {}
+                $ref: '#/components/schemas/StudentLoginResponse'
           description: ''
   /api/v1/auth/student/logout/:
     post:
@@ -880,13 +879,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SendOtpRequest'
+              $ref: '#/components/schemas/StudentSendOtpRequestRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/SendOtpRequest'
+              $ref: '#/components/schemas/StudentSendOtpRequestRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/SendOtpRequest'
+              $ref: '#/components/schemas/StudentSendOtpRequestRequest'
         required: true
       security:
       - jwtAuth: []
@@ -911,13 +910,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/VerifyOtpRequest'
+              $ref: '#/components/schemas/StudentVerifyOtpRequestRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/VerifyOtpRequest'
+              $ref: '#/components/schemas/StudentVerifyOtpRequestRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/VerifyOtpRequest'
+              $ref: '#/components/schemas/StudentVerifyOtpRequestRequest'
         required: true
       security:
       - jwtAuth: []
@@ -973,13 +972,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/StudentSignupRequest'
+              $ref: '#/components/schemas/StudentSignupRequestRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/StudentSignupRequest'
+              $ref: '#/components/schemas/StudentSignupRequestRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/StudentSignupRequest'
+              $ref: '#/components/schemas/StudentSignupRequestRequest'
         required: true
       security:
       - jwtAuth: []
@@ -990,8 +989,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: {}
+                $ref: '#/components/schemas/StudentSignupResponse'
           description: ''
   /api/v1/auth/student/token/refresh/:
     post:
@@ -6398,15 +6396,6 @@ components:
           minLength: 1
       required:
       - email
-    SendOtpRequest:
-      type: object
-      properties:
-        email:
-          type: string
-          format: email
-          minLength: 1
-      required:
-      - email
     SessionTotal:
       type: object
       description: Serializer for total study time response.
@@ -6576,7 +6565,7 @@ components:
       - id
       - school_name
       - student_id
-    StudentLoginRequest:
+    StudentLoginRequestRequest:
       type: object
       properties:
         school_id:
@@ -6593,6 +6582,24 @@ components:
       - email
       - password
       - school_id
+    StudentLoginResponse:
+      type: object
+      properties:
+        access:
+          type: string
+        refresh:
+          type: string
+        user:
+          type: object
+          additionalProperties: {}
+        student:
+          type: object
+          additionalProperties: {}
+      required:
+      - access
+      - refresh
+      - student
+      - user
     StudentLogoutRequestRequest:
       type: object
       properties:
@@ -6716,6 +6723,15 @@ components:
       required:
       - new_password
       - reset_token
+    StudentSendOtpRequestRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+      required:
+      - email
     StudentSettings:
       type: object
       properties:
@@ -6740,7 +6756,7 @@ components:
       - school
       - student_id
       - total_xp
-    StudentSignupRequest:
+    StudentSignupRequestRequest:
       type: object
       properties:
         school_id:
@@ -6766,6 +6782,24 @@ components:
       - password
       - school_id
       - student_code
+    StudentSignupResponse:
+      type: object
+      properties:
+        access:
+          type: string
+        refresh:
+          type: string
+        user:
+          type: object
+          additionalProperties: {}
+        student:
+          type: object
+          additionalProperties: {}
+      required:
+      - access
+      - refresh
+      - student
+      - user
     StudentTask:
       type: object
       properties:
@@ -6817,6 +6851,19 @@ components:
           minLength: 1
       required:
       - refresh_token
+    StudentVerifyOtpRequestRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        otp_code:
+          type: string
+          minLength: 1
+      required:
+      - email
+      - otp_code
     StudyHours:
       type: object
       properties:
@@ -7812,19 +7859,6 @@ components:
       required:
       - email
       - otp
-    VerifyOtpRequest:
-      type: object
-      properties:
-        email:
-          type: string
-          format: email
-          minLength: 1
-        otp_code:
-          type: string
-          minLength: 1
-      required:
-      - email
-      - otp_code
     XPAddRequest:
       type: object
       description: Serializer for adding XP.

@@ -4,7 +4,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from students.permissions import IsStudent
+from core.permissions import IsStudent
 from students.services.auth_service import (
     refresh_student_token,
     reset_password,
@@ -19,7 +19,9 @@ from students.serializers.auth_serializers import (
     ResetPasswordSerializer,
     SendOtpSerializer,
     StudentLoginSerializer,
+    StudentLoginResponseSerializer,
     StudentSignupSerializer,
+    StudentSignupResponseSerializer,
     TokenRefreshSerializer,
     VerifyOtpSerializer,
 )
@@ -30,7 +32,7 @@ from students.serializers.auth_serializers import (
     summary="Student signup",
     description="Register a new student account using a valid student code.",
     request=StudentSignupSerializer,
-    responses={201: dict},
+    responses={201: StudentSignupResponseSerializer},
 )
 @api_view(["POST"])
 @permission_classes([AllowAny])
@@ -46,7 +48,7 @@ def student_signup_view(request):
     summary="Student login",
     description="Authenticate student with email and password.",
     request=StudentLoginSerializer,
-    responses={200: dict},
+    responses={200: StudentLoginResponseSerializer},
 )
 @api_view(["POST"])
 @permission_classes([AllowAny])

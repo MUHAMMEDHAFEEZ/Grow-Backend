@@ -4,7 +4,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from students.permissions import IsStudent
+from core.permissions import IsStudent
 from students.serializers.notification_serializers import NotificationReadSerializer, NotificationSerializer
 from students.models import StudentNotification
 

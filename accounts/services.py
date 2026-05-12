@@ -15,6 +15,7 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from core.exceptions import Conflict, NotFound, PermissionDenied, RateLimitExceeded, ValidationError
+from core.rate_limit import check_rate_limit, is_blocked
 
 from .models import (
     EnrollmentCode,
@@ -41,6 +42,10 @@ def _has_linked_students(user: User) -> bool:
 
 
 def oauth_login(*, provider: str, access_token: str) -> dict:
+    if is_blocked(f"oauth:{provider}", namespace="auth"):
+        raise RateLimitExceeded("Too many OAuth attempts. Try again later.")
+    check_rate_limit(f"oauth:{provider}", 10, 3600, 3600, namespace="auth")
+
     email = _validate_oauth_token(provider, access_token)
     if not email:
         raise ValidationError(f"Invalid {provider} token.")
@@ -99,6 +104,10 @@ def _validate_facebook_token(access_token: str) -> str | None:
 
 
 def signup_user(*, username: str, email: str, password: str, role: str = "parent") -> dict:
+    if is_blocked(f"signup:{email}", namespace="auth"):
+        raise RateLimitExceeded("Too many signup attempts. Try again later.")
+    check_rate_limit(f"signup:{email}", 5, 3600, 3600, namespace="auth")
+
     if User.objects.filter(email=email).exists():
         raise ValidationError("A user with this email already exists.")
     user = User.objects.create_user(username=username, email=email, password=password, role=role)
@@ -111,6 +120,10 @@ def signup_user(*, username: str, email: str, password: str, role: str = "parent
 
 
 def login_user(*, email: str, password: str) -> dict:
+    if is_blocked(f"login:{email}", namespace="auth"):
+        raise RateLimitExceeded("Too many login attempts. Try again later.")
+    check_rate_limit(f"login:{email}", 10, 3600, 3600, namespace="auth")
+
     try:
         user_obj = User.objects.get(email=email)
     except User.DoesNotExist:
@@ -143,10 +156,10 @@ def logout_user(*, refresh_token: str) -> None:
 
 
 def forgot_password(*, email: str) -> None:
-    """
-    Generates a password-reset token and sends it by email.
-    Silently no-ops when the email is not registered (prevents user enumeration).
-    """
+    if is_blocked(f"forgot:{email}", namespace="auth"):
+        raise RateLimitExceeded("Too many forgot-password requests. Try again later.")
+    check_rate_limit(f"forgot:{email}", 5, 3600, 3600, namespace="auth")
+
     try:
         user = User.objects.get(email=email)
     except User.DoesNotExist:
@@ -172,6 +185,10 @@ def forgot_password(*, email: str) -> None:
 
 
 def reset_password(*, token: str, new_password: str) -> None:
+    if is_blocked(f"reset:{token}", namespace="auth"):
+        raise RateLimitExceeded("Too many reset attempts. Try again later.")
+    check_rate_limit(f"reset:{token}", 5, 3600, 3600, namespace="auth")
+
     try:
         reset_token = PasswordResetToken.objects.select_related("user").get(token=token)
     except PasswordResetToken.DoesNotExist:
@@ -187,6 +204,10 @@ def reset_password(*, token: str, new_password: str) -> None:
 
 
 def change_password(*, user: User, old_password: str, new_password: str) -> None:
+    if is_blocked(f"change_pw:{user.id}", namespace="auth"):
+        raise RateLimitExceeded("Too many change-password attempts. Try again later.")
+    check_rate_limit(f"change_pw:{user.id}", 5, 3600, 3600, namespace="auth")
+
     if not user.check_password(old_password):
         raise ValidationError("Current password is incorrect.")
     user.set_password(new_password)

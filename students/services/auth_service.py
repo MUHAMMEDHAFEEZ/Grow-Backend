@@ -52,6 +52,10 @@ def _is_blocked(key):
 
 
 def student_signup(school_id, full_name, email, password, student_code):
+    if _is_blocked(f"signup:{email}"):
+        raise RateLimitExceeded("Too many signup attempts. Try again later.")
+    _check_rate_limit(f"signup:{email}", 5, 3600, 3600)
+
     if User.objects.filter(email=email).exists():
         raise ValidationError("A user with this email already exists.")
 
@@ -136,6 +140,8 @@ def student_login(school_id, email, password):
 
 
 def refresh_student_token(refresh_token_str):
+    _check_rate_limit("global:token_refresh", 50, 300)
+
     try:
         stored_token = StudentRefreshToken.objects.get(
             token=refresh_token_str, is_revoked=False
@@ -234,6 +240,10 @@ def verify_otp(email, otp_code):
 
 
 def reset_password(reset_token, new_password):
+    if _is_blocked(f"reset:{reset_token}"):
+        raise RateLimitExceeded("Too many reset attempts. Try again later.")
+    _check_rate_limit(f"reset:{reset_token}", 5, 3600, 3600)
+
     email = cache.get(f"password_reset_token:{reset_token}")
     if email is None:
         raise ValidationError("Invalid or expired reset token.")

@@ -5,7 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from courses.models import Quiz, QuizAttempt
-from students.permissions import IsStudent
+from core.permissions import IsStudent
 from students.serializers.quiz_serializers import (
     QuizResultSerializer,
     QuizStartSerializer,
