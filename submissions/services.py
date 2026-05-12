@@ -12,7 +12,7 @@ from .models import Submission
 User = get_user_model()
 
 
-def submit_assignment(*, student: User, assignment_id: int, content: str) -> Submission:
+def submit_assignment(*, student: User, assignment_id: int, content: str = "", file=None) -> Submission:
     # Lazy import to avoid cross-app module-level dependency (assignments is upstream of submissions)
     from assignments.models import Assignment
 
@@ -28,7 +28,9 @@ def submit_assignment(*, student: User, assignment_id: int, content: str) -> Sub
         raise PermissionDenied("Submission deadline has passed.")
     if Submission.objects.filter(assignment=assignment, student=student).exists():
         raise Conflict("You have already submitted this assignment.")
-    submission = Submission.objects.create(assignment=assignment, student=student, content=content)
+    submission = Submission.objects.create(
+        assignment=assignment, student=student, content=content, file=file,
+    )
     EventBus.publish(Events.SUBMISSION_CREATED, {
         "submission_id": submission.pk,
         "assignment_id": assignment.pk,
@@ -41,7 +43,7 @@ def submit_assignment(*, student: User, assignment_id: int, content: str) -> Sub
     return submission
 
 
-def grade_submission(*, teacher: User, submission_id: int) -> Submission:
+def grade_submission(*, teacher: User, submission_id: int, raw_score: float = None, feedback: str = "") -> Submission:
     from assignments.models import Assignment
 
     try:
@@ -53,5 +55,12 @@ def grade_submission(*, teacher: User, submission_id: int) -> Submission:
         raise PermissionDenied("You can only grade submissions for your own courses.")
 
     submission.status = Submission.Status.GRADED
-    submission.save(update_fields=["status"])
+    if raw_score is not None:
+        max_score = float(submission.assignment.max_score)
+        submission.raw_score = raw_score
+        submission.normalized_score = (raw_score / max_score) * 100 if max_score > 0 else 0
+    if feedback:
+        submission.feedback = feedback
+    submission.is_graded = True
+    submission.save(update_fields=["status", "raw_score", "normalized_score", "feedback", "is_graded"])
     return submission

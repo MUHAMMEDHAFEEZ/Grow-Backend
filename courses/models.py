@@ -19,6 +19,7 @@ class Course(models.Model):
         blank=True,
         related_name="course_list",
     )
+    is_published = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     target_capacity = models.PositiveIntegerField(
         default=35, help_text="Target maximum enrollment"
@@ -93,10 +94,22 @@ class CourseProgress(models.Model):
 
 
 class Lesson(models.Model):
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        PUBLISHED = "published", "Published"
+
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="lessons")
     title = models.CharField(max_length=255)
     content = models.TextField()
     order = models.PositiveIntegerField(default=0)
+    status = models.CharField(
+        max_length=10, choices=Status.choices, default=Status.DRAFT
+    )
+    video_url = models.URLField(blank=True, default="")
+    pdf_file = models.FileField(upload_to="lesson_pdfs/", blank=True)
+    resources = models.FileField(upload_to="lesson_resources/", blank=True)
+    xp_reward = models.PositiveIntegerField(default=0)
+    bonus_xp = models.PositiveIntegerField(default=0)
     start_time = models.DateTimeField(
         null=True, blank=True, help_text="Scheduled lesson start time"
     )
@@ -145,8 +158,21 @@ class Quiz(models.Model):
     lesson = models.ForeignKey(
         Lesson, on_delete=models.SET_NULL, null=True, blank=True, related_name="quizzes"
     )
+    teacher = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="created_quizzes",
+        limit_choices_to={"role": "teacher"},
+        null=True,
+        blank=True,
+    )
     title = models.CharField(max_length=255)
     max_score = models.DecimalField(max_digits=5, decimal_places=2)
+    duration_minutes = models.PositiveIntegerField(default=30)
+    xp_reward = models.PositiveIntegerField(default=0)
+    start_time = models.DateTimeField(null=True, blank=True)
+    end_time = models.DateTimeField(null=True, blank=True)
+    is_locked = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -154,6 +180,7 @@ class Quiz(models.Model):
         indexes = [
             models.Index(fields=["course"]),
             models.Index(fields=["lesson"]),
+            models.Index(fields=["teacher"]),
         ]
         verbose_name_plural = "Quizzes"
 
@@ -186,4 +213,60 @@ class QuizAttempt(models.Model):
     def __str__(self) -> str:
         return f"{self.student.username} attempt #{self.attempt_number} on {self.quiz.title}"
 
+
+class Question(models.Model):
+    quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE, related_name="questions")
+    text = models.TextField()
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["order"]
+
+    def __str__(self) -> str:
+        return f"Q{self.order}: {self.text[:50]}"
+
+
+class AnswerOption(models.Model):
+    question = models.ForeignKey(
+        Question, on_delete=models.CASCADE, related_name="options"
+    )
+    text = models.CharField(max_length=255)
+    is_correct = models.BooleanField(default=False)
+
+    def __str__(self) -> str:
+        return self.text
+
+
+class QuizSubmission(models.Model):
+    class Status(models.TextChoices):
+        IN_PROGRESS = "in_progress", "In Progress"
+        COMPLETED = "completed", "Completed"
+
+    quiz = models.ForeignKey(
+        Quiz, on_delete=models.CASCADE, related_name="quiz_submissions"
+    )
+    student = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="quiz_submissions",
+        limit_choices_to={"role": "student"},
+    )
+    started_at = models.DateTimeField(auto_now_add=True)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    raw_score = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    max_score = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    normalized_score = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    xp_earned = models.IntegerField(default=0)
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.IN_PROGRESS
+    )
+
+    class Meta:
+        unique_together = ("quiz", "student")
+        indexes = [
+            models.Index(fields=["quiz", "status"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.student.username} → {self.quiz.title} ({self.status})"
 

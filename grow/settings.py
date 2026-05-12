@@ -62,6 +62,7 @@ INSTALLED_APPS = [
     "ai.apps.AiConfig",
     "dashboard.apps.DashboardConfig",
     "tasks.apps.TasksConfig",
+    "teachers.apps.TeachersConfig",
 ]
 
 MIDDLEWARE = [
@@ -263,9 +264,28 @@ SPECTACULAR_SETTINGS = {
 from datetime import timedelta
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),  # التوكن ينتهي بعد ساعة
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),  # Refresh Token ينتهي بعد أسبوع
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
+
+# ====================== Celery / Redis ======================
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = "UTC"
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": os.getenv("REDIS_URL", "redis://localhost:6379/1"),
+    }
+}
+
+# Teacher access token: 15-minute expiry for teacher-specific endpoints
+TEACHER_ACCESS_TOKEN_LIFETIME = timedelta(minutes=15)
+TEACHER_REFRESH_TOKEN_LIFETIME = timedelta(days=30)

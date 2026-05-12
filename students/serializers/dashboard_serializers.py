@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema_serializer
 from rest_framework import serializers
 
 
@@ -23,6 +24,7 @@ class LeaderboardEntrySerializer(serializers.Serializer):
     total_xp = serializers.IntegerField()
 
 
+@extend_schema_serializer(component_name="StudentDashboard")
 class DashboardSerializer(serializers.Serializer):
     total_xp = serializers.IntegerField()
     daily_streak = serializers.IntegerField()

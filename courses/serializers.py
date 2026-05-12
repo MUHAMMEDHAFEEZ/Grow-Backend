@@ -18,14 +18,17 @@ class LessonSerializer(serializers.ModelSerializer):
         default=0,
         help_text="Display order within the course. Lower numbers appear first.",
     )
+    xp_reward = serializers.IntegerField(read_only=True, help_text="XP reward for completing this lesson.")
+    bonus_xp = serializers.IntegerField(read_only=True, help_text="Bonus XP for completing this lesson.")
+    status = serializers.CharField(read_only=True, help_text="Lesson status: draft or published.")
     created_at = serializers.DateTimeField(
         read_only=True, help_text="Lesson creation timestamp."
     )
 
     class Meta:
         model = Lesson
-        fields = ["id", "title", "content", "order", "created_at"]
-        read_only_fields = ["id", "created_at"]
+        fields = ["id", "title", "content", "order", "xp_reward", "bonus_xp", "status", "created_at"]
+        read_only_fields = ["id", "xp_reward", "bonus_xp", "status", "created_at"]
 
 
 class CourseSerializer(serializers.ModelSerializer):
@@ -36,14 +39,15 @@ class CourseSerializer(serializers.ModelSerializer):
         required=False,
     )
     teacher = UserSerializer(read_only=True, help_text="Teacher who owns the course.")
+    is_published = serializers.BooleanField(read_only=True, help_text="Whether the course is published.")
     created_at = serializers.DateTimeField(
         read_only=True, help_text="Course creation timestamp."
     )
 
     class Meta:
         model = Course
-        fields = ["id", "title", "description", "teacher", "created_at"]
-        read_only_fields = ["id", "teacher", "created_at"]
+        fields = ["id", "title", "description", "teacher", "is_published", "created_at"]
+        read_only_fields = ["id", "teacher", "is_published", "created_at"]
 
 
 class CourseWriteSerializer(serializers.ModelSerializer):
@@ -104,8 +108,12 @@ class CourseProgressSerializer(serializers.ModelSerializer):
 class QuizSerializer(serializers.ModelSerializer):
     class Meta:
         model = Quiz
-        fields = ["id", "course_id", "lesson_id", "title", "max_score", "created_at"]
-        read_only_fields = ["id", "created_at"]
+        fields = [
+            "id", "course_id", "lesson_id", "teacher", "title", "max_score",
+            "duration_minutes", "xp_reward", "start_time", "end_time", "is_locked",
+            "created_at",
+        ]
+        read_only_fields = ["id", "teacher", "is_locked", "created_at"]
 
 
 class QuizAttemptSerializer(serializers.ModelSerializer):

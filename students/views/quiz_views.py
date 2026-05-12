@@ -18,6 +18,7 @@ from students.services.xp_service import award_xp
     tags=["Student Quizzes"],
     summary="Start quiz",
     description="Get quiz questions and start attempt.",
+    request=None,
     responses={200: QuizStartSerializer},
 )
 @api_view(["POST"])

@@ -7,7 +7,7 @@ from assignments.models import Assignment
 class Submission(models.Model):
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
-        GRADED  = "graded",  "Graded"
+        GRADED = "graded", "Graded"
 
     assignment = models.ForeignKey(Assignment, on_delete=models.CASCADE, related_name="submissions")
     student = models.ForeignKey(
@@ -16,8 +16,14 @@ class Submission(models.Model):
         related_name="submissions",
         limit_choices_to={"role": "student"},
     )
-    content = models.TextField()
+    content = models.TextField(blank=True, default="")
+    file = models.FileField(upload_to="submissions/", blank=True)
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    raw_score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    normalized_score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    xp_awarded = models.IntegerField(null=True, blank=True)
+    feedback = models.TextField(blank=True, default="")
+    is_graded = models.BooleanField(default=False)
     submitted_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

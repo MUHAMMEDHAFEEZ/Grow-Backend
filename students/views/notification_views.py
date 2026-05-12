@@ -35,6 +35,7 @@ def notification_list_view(request):
 @extend_schema(
     tags=["Student Notifications"],
     summary="Mark notification as read",
+    request=None,
     responses={200: NotificationReadSerializer},
 )
 @api_view(["PATCH"])

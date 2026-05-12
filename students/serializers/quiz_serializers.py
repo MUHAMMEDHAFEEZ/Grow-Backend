@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema_serializer
 from rest_framework import serializers
 
 
@@ -25,10 +26,12 @@ class AnswerSerializer(serializers.Serializer):
     answer = serializers.CharField()
 
 
+@extend_schema_serializer(component_name="StudentQuizSubmitRequest")
 class QuizSubmitSerializer(serializers.Serializer):
     answers = AnswerSerializer(many=True)
 
 
+@extend_schema_serializer(component_name="StudentQuizResult")
 class QuizResultSerializer(serializers.Serializer):
     score = serializers.DecimalField(max_digits=5, decimal_places=2)
     percentage = serializers.FloatField()

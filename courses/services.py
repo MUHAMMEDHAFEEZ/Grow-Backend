@@ -320,6 +320,8 @@ def submit_quiz_attempt(
 def create_quiz(
     *, course_id: int, teacher: User, title: str, max_score: float,
     lesson_id: int | None = None,
+    duration_minutes: int = 30, xp_reward: int = 0,
+    start_time=None, end_time=None,
 ) -> Quiz:
     """Teacher creates a quiz for a course they own."""
     try:
@@ -330,9 +332,14 @@ def create_quiz(
         raise PermissionDenied("You do not own this course.")
     quiz = Quiz.objects.create(
         course=course,
+        teacher=teacher,
         lesson_id=lesson_id,
         title=title,
         max_score=max_score,
+        duration_minutes=duration_minutes,
+        xp_reward=xp_reward,
+        start_time=start_time,
+        end_time=end_time,
     )
     EventBus.publish(
         Events.QUIZ_CREATED,
