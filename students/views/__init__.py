@@ -6,10 +6,10 @@ from rest_framework.response import Response
 from accounts.serializers import SchoolSerializer
 from core.exceptions import Conflict, NotFound, RateLimitExceeded, ValidationError
 
-from .serializers import AddStudentSerializer, DashboardResponseSerializer
-from .models import Student, Grade
+from students.serializers import AddStudentSerializer, DashboardResponseSerializer
+from students.models import Student, Grade
 from schools.models import School
-from . import services
+from students import services
 
 
 @extend_schema(

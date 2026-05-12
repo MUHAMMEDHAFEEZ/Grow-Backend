@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import add_student, check_has_students, get_grades, get_schools, get_students, dashboard
+from students.views import add_student, check_has_students, get_grades, get_schools, get_students, dashboard
 
 urlpatterns = [
     path('add-student/', add_student, name='add_student'),

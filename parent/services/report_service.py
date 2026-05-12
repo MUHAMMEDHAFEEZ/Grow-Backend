@@ -48,7 +48,7 @@ def get_monthly_report(student_id: int, year_month: str) -> dict:
             student_id=student_id,
             created_at__year=year,
             created_at__month=month,
-        ).aggregate(total=Sum("xp"))["total"]
+        ).aggregate(total=Sum("xp_amount"))["total"]
         or 0
     )
 

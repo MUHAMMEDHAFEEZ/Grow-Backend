@@ -111,7 +111,7 @@ def get_student_xp(student):
 
     total_xp = XPTransaction.objects.filter(
         student=student
-    ).aggregate(total=Coalesce(Sum('xp'), 0))['total'] or 0
+    ).aggregate(total=Coalesce(Sum('xp_amount'), 0))['total'] or 0
 
     return {'total_xp': total_xp}
 

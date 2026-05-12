@@ -7,14 +7,14 @@ class XPTransactionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = XPTransaction
-        fields = ["id", "student", "xp", "source", "created_at"]
+        fields = ["id", "student", "xp_amount", "source", "created_at"]
         read_only_fields = ["id", "student", "created_at"]
 
 
 class XPAddSerializer(serializers.Serializer):
     """Serializer for adding XP."""
 
-    xp = serializers.IntegerField(min_value=1)
+    xp_amount = serializers.IntegerField(min_value=1)
     source = serializers.ChoiceField(choices=XPTransaction.Source.choices)
 
 
@@ -31,5 +31,5 @@ class XPHistorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = XPTransaction
-        fields = ["id", "student", "xp", "source", "created_at"]
+        fields = ["id", "student", "xp_amount", "source", "created_at"]
         read_only_fields = fields

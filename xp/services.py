@@ -44,7 +44,7 @@ def add_xp(student, xp_amount, source):
         raise InvalidSourceError(f"Invalid source: {source}")
 
     transaction = XPTransaction.objects.create(
-        student=student, xp=xp_amount, source=source
+        student=student, xp_amount=xp_amount, source=source
     )
     return transaction
 
@@ -70,7 +70,7 @@ def get_total_xp(student):
     from xp.models import XPTransaction
 
     result = XPTransaction.objects.filter(student=student).aggregate(
-        total_xp=Coalesce(Sum("xp"), 0), transaction_count=Count("id")
+        total_xp=Coalesce(Sum("xp_amount"), 0), transaction_count=Count("id")
     )
     return {
         "total_xp": result["total_xp"],
@@ -90,7 +90,7 @@ def get_xp_breakdown(student):
     result = (
         XPTransaction.objects.filter(student=student)
         .values("source")
-        .annotate(total=Sum("xp"))
+        .annotate(total=Sum("xp_amount"))
     )
 
     breakdown = {source: 0 for source in XPTransaction.Source.values}
