@@ -10,8 +10,11 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import logging
 import os
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -260,6 +263,36 @@ SPECTACULAR_SETTINGS = {
     "DISABLE_ERRORS_AND_WARNINGS": False,
 }
 
+# ====================== Logging ======================
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": os.getenv("DJANGO_LOG_LEVEL", "INFO"),
+    },
+    "loggers": {
+        "grow.settings": {
+            "level": "INFO",
+        },
+        "core.rate_limit": {
+            "level": "WARNING",
+        },
+    },
+}
+
 # ====================== JWT Settings ======================
 from datetime import timedelta
 
@@ -271,20 +304,51 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
-# ====================== Celery / Redis ======================
+# ====================== Redis / Cache ======================
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/1")
+
+
+def _resolve_cache_config() -> dict:
+    """Probe Redis at startup; fall back to LocMemCache on failure.
+
+    This is evaluated once during Django startup (settings import time).
+    If Redis is unreachable, the project continues with a local in-memory
+    cache.  No endpoint — including login — will crash when Redis is down.
+    """
+    backend = "django.core.cache.backends.redis.RedisCache"
+    location = REDIS_URL
+    # Short-circuit: use LocMemCache when explicitly requested
+    if os.getenv("CACHE_BACKEND", "").lower() == "locmem":
+        logger.info("CACHE_BACKEND=locmem — using LocMemCache (Redis bypassed)")
+        return {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "locmem-default"}
+    # Try Redis
+    try:
+        import redis as _redis
+        conn = _redis.from_url(location, socket_connect_timeout=2)
+        conn.ping()
+        conn.close()
+        logger.info("Redis connection OK — using RedisCache at %s", location.replace("redis://", "redis://***:***@"))
+        return {"BACKEND": backend, "LOCATION": location}
+    except Exception as exc:
+        logger.warning(
+            "Redis unavailable (%s). Falling back to LocMemCache. "
+            "Rate limiting and cached data will be per-process only.",
+            exc,
+        )
+        return {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "locmem-fallback"}
+
+
+CACHES = {
+    "default": _resolve_cache_config(),
+}
+
+# ====================== Celery ======================
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "UTC"
-
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": os.getenv("REDIS_URL", "redis://localhost:6379/1"),
-    }
-}
 
 # Teacher access token: 15-minute expiry for teacher-specific endpoints
 TEACHER_ACCESS_TOKEN_LIFETIME = timedelta(minutes=15)

@@ -1,3 +1,4 @@
+import logging
 import random
 import secrets
 from datetime import timedelta
@@ -14,6 +15,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from core.exceptions import RateLimitExceeded, ValidationError
 from students.models import LoginHistory, OTPRecord, RefreshToken as StudentRefreshToken, Student, StudentSession
 
+logger = logging.getLogger(__name__)
 User = get_user_model()
 
 
@@ -23,29 +25,48 @@ User = get_user_model()
 def _check_rate_limit(key, max_attempts, window_seconds, block_seconds=None):
     now = timezone.now()
     cache_key = f"student_rate_limit:{key}"
-    data = cache.get(cache_key)
+    try:
+        data = cache.get(cache_key)
+    except Exception:
+        logger.warning("Student rate-limit check skipped — cache unavailable for key '%s'", key)
+        return
 
     if data is None:
-        cache.set(cache_key, {"count": 1, "window_start": now.timestamp()}, window_seconds)
+        try:
+            cache.set(cache_key, {"count": 1, "window_start": now.timestamp()}, window_seconds)
+        except Exception:
+            logger.exception("Student rate-limit cache set failed for key '%s'", key)
         return
 
     window_start = timezone.datetime.fromtimestamp(data["window_start"], tz=now.tzinfo)
     if (now - window_start).total_seconds() > window_seconds:
-        cache.set(cache_key, {"count": 1, "window_start": now.timestamp()}, window_seconds)
+        try:
+            cache.set(cache_key, {"count": 1, "window_start": now.timestamp()}, window_seconds)
+        except Exception:
+            logger.exception("Student rate-limit cache set failed for key '%s'", key)
         return
 
     data["count"] += 1
     if data["count"] > max_attempts:
         if block_seconds:
-            cache.set(cache_key + ":blocked", True, block_seconds)
-            raise RateLimitExceeded("Too many attempts. Try again later.")
+            try:
+                cache.set(cache_key + ":blocked", True, block_seconds)
+            except Exception:
+                logger.exception("Student rate-limit block set failed for key '%s'", key)
         raise RateLimitExceeded("Too many attempts. Try again later.")
 
-    cache.set(cache_key, data, window_seconds)
+    try:
+        cache.set(cache_key, data, window_seconds)
+    except Exception:
+        logger.exception("Student rate-limit cache set failed for key '%s'", key)
 
 
 def _is_blocked(key):
-    return cache.get(f"student_rate_limit:{key}:blocked") is not None
+    try:
+        return cache.get(f"student_rate_limit:{key}:blocked") is not None
+    except Exception:
+        logger.warning("Student rate-limit block check skipped — cache unavailable for key '%s'", key)
+        return False
 
 
 # ── Auth Services ──────────────────────────────────────────────────────────────
