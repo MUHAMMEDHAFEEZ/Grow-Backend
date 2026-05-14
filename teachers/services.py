@@ -227,12 +227,13 @@ def change_password(*, user: User, new_password: str):
 # ── Course ──
 
 
-def create_teacher_course(*, teacher: User, title: str, description: str = "", grade_id: int | None = None, is_published: bool = False) -> Course:
+def create_teacher_course(*, teacher: User, title: str, description: str = "", grade_id: int | None = None, is_published: bool = False, grade=None) -> Course:
+    resolved_grade_id = getattr(grade, "pk", grade) or grade_id
     course = Course.objects.create(
         teacher=teacher,
         title=title,
         description=description,
-        grade_id=grade_id,
+        grade_id=resolved_grade_id,
         is_published=is_published,
     )
     _log_audit("teacher", teacher.id, "create", "Course", course.id)
