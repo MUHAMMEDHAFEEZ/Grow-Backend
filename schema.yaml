@@ -22,18 +22,60 @@ info:
   license:
     name: Proprietary
 paths:
+  /api/schools/:
+    get:
+      operationId: schools_list
+      description: Returns a list of all schools with their names, codes, and types.
+      summary: List all schools
+      tags:
+      - Schools
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/School'
+          description: ''
   /api/v1/ai/chat/:
     post:
       operationId: ai_chat_create
-      description: Chat with AI assistant using student context.
+      description: Send a message to the AI assistant with student context for personalized
+        help.
+      summary: Chat with AI assistant
       tags:
-      - ai
+      - AI
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ChatRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ChatRequestRequest'
+        required: true
       security:
       - jwtAuth: []
       - BearerAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+          description: AI response.
+        '400':
+          description: Invalid request.
+        '404':
+          description: Student profile not found.
   /api/v1/attendance/:
     get:
       operationId: attendance_list
@@ -281,6 +323,7 @@ paths:
                       username: sara_student
                       email: sara@school.edu
                       role: student
+                    is_first_login: false
                   summary: Login Response
           description: Login successful.
         '400':
@@ -337,6 +380,41 @@ paths:
           description: Current user data.
         '401':
           description: Authentication credentials were not provided.
+  /api/v1/auth/oauth/:
+    post:
+      operationId: auth_oauth_create
+      description: Authenticate using a Google or Facebook access token. If the email
+        does not exist, a new parent account is created automatically.
+      summary: OAuth login/register via Google or Facebook
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OAuthRequest'
+            examples:
+              GoogleOAuth:
+                value:
+                  provider: google
+                  access_token: ya29...
+                summary: Google OAuth
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OAuthRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OAuthRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          description: Login or registration successful.
+        '400':
+          description: Invalid or expired token.
   /api/v1/auth/parent-profile/:
     post:
       operationId: auth_parent_profile_create
@@ -690,6 +768,260 @@ paths:
           description: Not the school's admin.
         '404':
           description: School not found.
+  /api/v1/auth/signup/:
+    post:
+      operationId: auth_signup_create
+      description: Registers a new **parent** account and returns an auth token immediately.
+        `is_first_login` is `true` when the parent has no linked students yet.
+      summary: Parent signup — register and receive token
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            examples:
+              ParentSignup:
+                value:
+                  username: ahmed_parent
+                  email: ahmed@example.com
+                  password: SecurePass123
+                summary: Parent Signup
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignupResponse'
+          description: Account created. Returns token + is_first_login.
+        '400':
+          description: Validation error.
+  /api/v1/auth/student/login/:
+    post:
+      operationId: auth_student_login_create
+      description: Authenticate student with email and password.
+      summary: Student login
+      tags:
+      - Student Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentLoginRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StudentLoginRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StudentLoginRequestRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentLoginResponse'
+          description: ''
+  /api/v1/auth/student/logout/:
+    post:
+      operationId: auth_student_logout_create
+      description: Revoke refresh token and close active session.
+      summary: Student logout
+      tags:
+      - Student Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentLogoutRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StudentLogoutRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StudentLogoutRequestRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/auth/student/otp/send/:
+    post:
+      operationId: auth_student_otp_send_create
+      description: Send a one-time password to the student's email for password reset.
+      summary: Send OTP
+      tags:
+      - Student Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentSendOtpRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StudentSendOtpRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StudentSendOtpRequestRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/auth/student/otp/verify/:
+    post:
+      operationId: auth_student_otp_verify_create
+      description: Verify the OTP code and receive a password reset token.
+      summary: Verify OTP
+      tags:
+      - Student Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentVerifyOtpRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StudentVerifyOtpRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StudentVerifyOtpRequestRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/auth/student/password/reset/:
+    post:
+      operationId: auth_student_password_reset_create
+      description: Reset student password using a verified reset token.
+      summary: Reset password
+      tags:
+      - Student Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentResetPasswordRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StudentResetPasswordRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StudentResetPasswordRequestRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/auth/student/signup/:
+    post:
+      operationId: auth_student_signup_create
+      description: Register a new student account using a valid student code.
+      summary: Student signup
+      tags:
+      - Student Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentSignupRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StudentSignupRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StudentSignupRequestRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentSignupResponse'
+          description: ''
+  /api/v1/auth/student/token/refresh/:
+    post:
+      operationId: auth_student_token_refresh_create
+      description: Get a new access token using a valid refresh token.
+      summary: Refresh access token
+      tags:
+      - Student Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentTokenRefreshRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StudentTokenRefreshRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StudentTokenRefreshRequestRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/auth/token/refresh/:
     post:
       operationId: auth_token_refresh_create
@@ -782,6 +1114,31 @@ paths:
           description: Validation error.
         '403':
           description: Only teachers can create courses.
+  /api/v1/courses/{course_id}/task-summary/:
+    get:
+      operationId: courses_task_summary_retrieve
+      description: Per-student task completion counts for a course. Teacher must own
+        the course.
+      summary: Course task summary
+      parameters:
+      - in: path
+        name: course_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Tasks
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/courses/{course_pk}/assignments/:
     get:
       operationId: courses_assignments_list
@@ -940,8 +1297,8 @@ paths:
   /api/v1/courses/{course_pk}/assignments/{assignment_pk}/submissions/{id}/grade/:
     post:
       operationId: courses_assignments_submissions_grade_create
-      description: '**Teachers only.** Mark a submission as graded. Only the teacher
-        who owns the course can grade submissions.'
+      description: '**Teachers only.** Grade a submission with score and feedback.
+        Only the teacher who owns the course can grade submissions.'
       summary: Grade a submission
       parameters:
       - in: path
@@ -964,6 +1321,18 @@ paths:
         required: true
       tags:
       - Submissions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmissionGradeSubmissionRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SubmissionGradeSubmissionRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SubmissionGradeSubmissionRequestRequest'
+        required: true
       security:
       - jwtAuth: []
       - BearerAuth: []
@@ -1019,7 +1388,6 @@ paths:
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/SubmissionCreateRequest'
-        required: true
       security:
       - jwtAuth: []
       - BearerAuth: []
@@ -1322,6 +1690,18 @@ paths:
         required: true
       tags:
       - Lessons
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CourseRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CourseRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CourseRequest'
+        required: true
       security:
       - jwtAuth: []
       - BearerAuth: []
@@ -1517,18 +1897,29 @@ paths:
           description: ''
   /api/v1/dashboard/classes/:
     get:
-      operationId: dashboard_classes_retrieve
+      operationId: dashboard_classes_list
+      description: Returns paginated list of classes with health metrics.
+      summary: List classes
       tags:
-      - dashboard
+      - Dashboard
       security:
       - jwtAuth: []
       - BearerAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ClassCard'
+          description: ''
   /api/v1/dashboard/classes/{class_id}/:
     get:
-      operationId: dashboard_classes_retrieve_2
+      operationId: dashboard_classes_retrieve
+      description: 'Returns full class analytics: distribution, leaderboard, trends,
+        teacher performance.'
+      summary: Get class detail
       parameters:
       - in: path
         name: class_id
@@ -1536,16 +1927,22 @@ paths:
           type: integer
         required: true
       tags:
-      - dashboard
+      - Dashboard
       security:
       - jwtAuth: []
       - BearerAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClassDetail'
+          description: ''
   /api/v1/dashboard/insights/{insight_id}/dismiss/:
     post:
-      operationId: dashboard_insights_dismiss_create
+      operationId: dashboard_insight_dismiss
+      description: Dismiss a dashboard insight/alert.
+      summary: Dismiss insight
       parameters:
       - in: path
         name: insight_id
@@ -1553,60 +1950,88 @@ paths:
           type: integer
         required: true
       tags:
-      - dashboard
+      - Dashboard
       security:
       - jwtAuth: []
       - BearerAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardInsight'
+          description: Insight dismissed.
   /api/v1/dashboard/overview/:
     get:
       operationId: dashboard_overview_retrieve
+      description: Returns KPIs, active alerts, and chart data for the dashboard overview
+        page.
+      summary: Get dashboard overview
       tags:
-      - dashboard
+      - Dashboard
       security:
       - jwtAuth: []
       - BearerAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardOverview'
+          description: ''
   /api/v1/dashboard/reports/:
     get:
-      operationId: dashboard_reports_retrieve
+      operationId: dashboard_report_view
+      description: Returns filtered report with period comparison and insights.
+      summary: Get report summary
       tags:
-      - dashboard
+      - Dashboard
       security:
       - jwtAuth: []
       - BearerAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportSummary'
+          description: ''
   /api/v1/dashboard/reports/export/:
     get:
-      operationId: dashboard_reports_export_retrieve
+      operationId: dashboard_report_export
+      description: Export report as PDF or XLSX file.
+      summary: Export report
       tags:
-      - dashboard
+      - Dashboard
       security:
       - jwtAuth: []
       - BearerAuth: []
       responses:
         '200':
-          description: No response body
+          description: PDF or XLSX file
   /api/v1/dashboard/risk-summary/:
     get:
-      operationId: dashboard_risk_summary_retrieve
+      operationId: dashboard_risk_summary
+      description: Returns risk tier breakdown and top at-risk students.
+      summary: Get risk summary
       tags:
-      - dashboard
+      - Dashboard
       security:
       - jwtAuth: []
       - BearerAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RiskSummary'
+          description: ''
   /api/v1/dashboard/students/{student_id}/:
     get:
-      operationId: dashboard_students_retrieve
+      operationId: dashboard_student_profile
+      description: Returns student profile with academic history, risk score, interventions,
+        and notes.
+      summary: Get student profile
       parameters:
       - in: path
         name: student_id
@@ -1614,16 +2039,22 @@ paths:
           type: integer
         required: true
       tags:
-      - dashboard
+      - Dashboard
       security:
       - jwtAuth: []
       - BearerAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentProfile'
+          description: ''
   /api/v1/dashboard/students/{student_id}/notes/:
     post:
-      operationId: dashboard_students_notes_create
+      operationId: dashboard_student_note_create
+      description: Add a note to a student's profile.
+      summary: Create student note
       parameters:
       - in: path
         name: student_id
@@ -1631,13 +2062,29 @@ paths:
           type: integer
         required: true
       tags:
-      - dashboard
+      - Dashboard
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentNoteCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StudentNoteCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StudentNoteCreateRequest'
+        required: true
       security:
       - jwtAuth: []
       - BearerAuth: []
       responses:
-        '200':
-          description: No response body
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentNote'
+          description: ''
   /api/v1/dashboard/teacher/:
     get:
       operationId: dashboard_teacher_retrieve
@@ -1659,7 +2106,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TeacherDashboard'
+                $ref: '#/components/schemas/SubmissionTeacherDashboard'
           description: ''
   /api/v1/grades/:
     get:
@@ -1770,7 +2217,8 @@ paths:
       - in: path
         name: id
         schema:
-          type: string
+          type: integer
+        description: Unique lesson ID.
         required: true
       tags:
       - Lessons
@@ -1803,6 +2251,18 @@ paths:
         required: true
       tags:
       - Lessons
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LessonRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LessonRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LessonRequest'
+        required: true
       security:
       - jwtAuth: []
       - BearerAuth: []
@@ -1828,7 +2288,8 @@ paths:
       - in: path
         name: id
         schema:
-          type: string
+          type: integer
+        description: Unique lesson ID.
         required: true
       tags:
       - Lessons
@@ -1953,6 +2414,119 @@ paths:
                     marked_read: 4
                   summary: Mark All Read Response
           description: All notifications marked as read.
+  /api/v1/parent/add-student/:
+    post:
+      operationId: parent_add_student_create
+      description: Links an existing student to the authenticated parent using the
+        student's ID and parent_access_code.
+      summary: Add student with verification code
+      tags:
+      - Parent
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddStudentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AddStudentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AddStudentRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                description: Student linked successfully.
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                description: Invalid access code or bad request.
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                description: Student not found.
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                description: Student already linked to another parent.
+          description: ''
+        '429':
+          content:
+            application/json:
+              schema:
+                description: Too many failed attempts. Rate limited.
+          description: ''
+  /api/v1/parent/analytics/{student_id}/:
+    get:
+      operationId: parent_analytics_retrieve
+      description: 'Returns performance trends for the specified student. Accepts
+        `filter` query param: weekly, monthly, or yearly.'
+      summary: Get student analytics
+      parameters:
+      - in: query
+        name: filter
+        schema:
+          type: string
+        description: 'Aggregation period: weekly, monthly, or yearly.'
+      - in: path
+        name: student_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Parent
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Analytics'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                description: Invalid filter value.
+          description: ''
+  /api/v1/parent/attendance/{student_id}/:
+    get:
+      operationId: parent_attendance_retrieve
+      description: Returns attendance data including study hours, streak, attendance
+        rate, and monthly activity calendar.
+      summary: Get student attendance
+      parameters:
+      - in: path
+        name: student_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Parent
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Attendance'
+          description: ''
   /api/v1/parent/dashboard/{student_id}/:
     get:
       operationId: parent_dashboard_retrieve
@@ -1977,6 +2551,182 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Dashboard'
+          description: ''
+  /api/v1/parent/notifications/:
+    get:
+      operationId: parent_notifications_list
+      description: Returns a paginated list of notifications for the authenticated
+        parent.
+      summary: List parent notifications
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Page number.
+      tags:
+      - Parent
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ParentNotification'
+          description: ''
+  /api/v1/parent/notifications/{notification_id}/read/:
+    patch:
+      operationId: parent_notifications_read_partial_update
+      description: Marks a single notification as read. Only the notification owner
+        can do this.
+      summary: Mark notification as read
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: notification_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Parent
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+          description: Notification marked as read.
+  /api/v1/parent/report/{student_id}/:
+    get:
+      operationId: parent_report_retrieve
+      description: Returns a monthly performance report for the specified student.
+      summary: Get monthly report
+      parameters:
+      - in: query
+        name: month
+        schema:
+          type: string
+        description: Month in YYYY-MM format.
+        required: true
+      - in: path
+        name: student_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Parent
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+          description: ''
+  /api/v1/parent/report/{student_id}/print/:
+    get:
+      operationId: parent_report_print_retrieve
+      description: Returns a PDF version of the monthly report.
+      summary: Print monthly report as PDF
+      parameters:
+      - in: query
+        name: month
+        schema:
+          type: string
+        description: Month in YYYY-MM format.
+        required: true
+      - in: path
+        name: student_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Parent
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                description: PDF file.
+          description: ''
+  /api/v1/parent/settings/:
+    get:
+      operationId: parent_settings_retrieve
+      description: Returns profile, linked students, and notification preference.
+      summary: Get settings
+      tags:
+      - Parent
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Settings'
+          description: ''
+    patch:
+      operationId: parent_settings_partial_update
+      description: Partially updates profile (full_name, notifications_enabled).
+      summary: Update settings
+      tags:
+      - Parent
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedSettingsRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedSettingsRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedSettingsRequest'
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Settings'
+          description: ''
+  /api/v1/parent/students/:
+    get:
+      operationId: parent_students_list
+      description: Returns all students linked to the authenticated parent.
+      summary: List linked students
+      tags:
+      - Parent
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StudentList'
           description: ''
   /api/v1/quizzes/:
     get:
@@ -2046,7 +2796,8 @@ paths:
       - in: path
         name: id
         schema:
-          type: string
+          type: integer
+        description: Unique quiz ID.
         required: true
       tags:
       - Quizzes
@@ -2069,7 +2820,8 @@ paths:
       - in: path
         name: id
         schema:
-          type: string
+          type: integer
+        description: Unique quiz ID.
         required: true
       tags:
       - Quizzes
@@ -2111,7 +2863,8 @@ paths:
       - in: path
         name: id
         schema:
-          type: string
+          type: integer
+        description: Unique quiz ID.
         required: true
       tags:
       - Quizzes
@@ -2129,74 +2882,366 @@ paths:
           description: ''
   /api/v1/sessions/:
     get:
-      operationId: sessions_retrieve
-      description: |-
-        GET /sessions/
-        List all sessions for the authenticated user.
+      operationId: session_list
+      description: Returns paginated list of study sessions.
+      summary: List study sessions
       tags:
-      - sessions
+      - Sessions
       security:
       - jwtAuth: []
       - BearerAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StudySession'
+          description: ''
   /api/v1/sessions/active/:
     get:
-      operationId: sessions_active_retrieve
-      description: |-
-        GET /sessions/active/
-        Get the currently active session.
+      operationId: session_active
+      description: Returns the currently active study session, if any.
+      summary: Get active session
       tags:
-      - sessions
+      - Sessions
       security:
       - jwtAuth: []
       - BearerAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudySession'
+          description: ''
   /api/v1/sessions/end/:
     post:
-      operationId: sessions_end_create
-      description: |-
-        POST /sessions/end/
-        End the current study session.
+      operationId: session_end
+      description: Ends the active study session and awards XP.
+      summary: End the current study session
       tags:
-      - sessions
+      - Sessions
       security:
       - jwtAuth: []
       - BearerAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudySession'
+          description: ''
   /api/v1/sessions/start/:
     post:
-      operationId: sessions_start_create
-      description: |-
-        POST /sessions/start/
-        Start a new study session.
+      operationId: session_start
+      description: Starts a new study session for the authenticated user.
+      summary: Start a study session
       tags:
-      - sessions
+      - Sessions
       security:
       - jwtAuth: []
       - BearerAuth: []
       responses:
-        '200':
-          description: No response body
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudySession'
+          description: ''
   /api/v1/sessions/total/:
     get:
-      operationId: sessions_total_retrieve
-      description: |-
-        GET /sessions/total/
-        Get total study time.
+      operationId: session_total
+      description: Returns total study duration and session count.
+      summary: Get total study time
       tags:
-      - sessions
+      - Sessions
       security:
       - jwtAuth: []
       - BearerAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionTotal'
+          description: ''
+  /api/v1/student/assignments/{assignment_id}/:
+    get:
+      operationId: student_assignments_retrieve
+      description: Get assignment details with submission status.
+      summary: Assignment detail
+      parameters:
+      - in: path
+        name: assignment_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Student Assignments
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssignmentDetail'
+          description: ''
+  /api/v1/student/assignments/{assignment_id}/submit/:
+    post:
+      operationId: student_assignments_submit_create
+      description: Upload a file as assignment submission.
+      summary: Submit assignment
+      parameters:
+      - in: path
+        name: assignment_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Student Assignments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignmentSubmitRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AssignmentSubmitRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AssignmentSubmitRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/student/courses/:
+    get:
+      operationId: student_courses_list
+      description: Get courses for the student, with optional status filter.
+      summary: List courses
+      tags:
+      - Student Courses
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CourseList'
+          description: ''
+  /api/v1/student/courses/{course_id}/:
+    get:
+      operationId: student_courses_retrieve
+      description: Get full course content with lesson completion status.
+      summary: Course detail
+      parameters:
+      - in: path
+        name: course_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Student Courses
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseDetail'
+          description: ''
+  /api/v1/student/dashboard/:
+    get:
+      operationId: student_dashboard_retrieve
+      description: Get XP, streak, today's tasks, daily master, and leaderboard.
+      summary: Student dashboard
+      tags:
+      - Student Dashboard
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentDashboard'
+          description: ''
+  /api/v1/student/lessons/{lesson_id}/complete/:
+    post:
+      operationId: student_lessons_complete_create
+      description: Mark a lesson as completed.
+      summary: Complete lesson
+      parameters:
+      - in: path
+        name: lesson_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Student Courses
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/student/notifications/:
+    get:
+      operationId: student_notifications_list
+      description: Get paginated student notifications, newest first.
+      summary: List notifications
+      tags:
+      - Student Notifications
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StudentNotification'
+          description: ''
+  /api/v1/student/notifications/{notification_id}/read/:
+    patch:
+      operationId: student_notifications_read_partial_update
+      summary: Mark notification as read
+      parameters:
+      - in: path
+        name: notification_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Student Notifications
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationRead'
+          description: ''
+  /api/v1/student/quizzes/{quiz_id}/start/:
+    post:
+      operationId: student_quizzes_start_create
+      description: Get quiz questions and start attempt.
+      summary: Start quiz
+      parameters:
+      - in: path
+        name: quiz_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Student Quizzes
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuizStart'
+          description: ''
+  /api/v1/student/quizzes/{quiz_id}/submit/:
+    post:
+      operationId: student_quizzes_submit_create
+      description: Submit quiz answers and get score.
+      summary: Submit quiz
+      parameters:
+      - in: path
+        name: quiz_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Student Quizzes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentQuizSubmitRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StudentQuizSubmitRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StudentQuizSubmitRequestRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentQuizResult'
+          description: ''
+  /api/v1/student/settings/:
+    get:
+      operationId: student_settings_retrieve
+      description: Get profile settings with aggregated stats.
+      summary: Student settings
+      tags:
+      - Student Settings
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentSettings'
+          description: ''
+  /api/v1/student/tasks/:
+    get:
+      operationId: student_tasks_retrieve
+      description: Get past-due items, today's missions, and summary bar.
+      summary: Tasks overview
+      tags:
+      - Student Tasks
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TasksResponse'
+          description: ''
   /api/v1/submissions/{submission_pk}/grade/:
     post:
       operationId: submissions_grade_create
@@ -2267,51 +3312,1220 @@ paths:
           description: Submission not found.
         '409':
           description: This submission is already graded.
+  /api/v1/tasks/:
+    get:
+      operationId: tasks_list
+      description: Returns all tasks for the authenticated student, or for teachers
+        — aggregate per-student counts for their courses. Admins see all.
+      summary: List student tasks
+      tags:
+      - Tasks
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StudentTask'
+          description: ''
+  /api/v1/tasks/{id}/complete/:
+    patch:
+      operationId: tasks_complete_partial_update
+      description: Manually mark a pending task as completed.
+      summary: Mark a task as complete
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Tasks
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentTask'
+          description: ''
+        '403':
+          description: Not your task.
+        '404':
+          description: Task not found.
+  /api/v1/tasks/pending/:
+    get:
+      operationId: tasks_pending_list
+      description: Returns only pending tasks for the authenticated student.
+      summary: List pending tasks
+      tags:
+      - Tasks
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StudentTask'
+          description: ''
+  /api/v1/teacher/assignments/:
+    get:
+      operationId: teacher_assignments_list
+      summary: List assignments
+      tags:
+      - Teacher Assignments
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TeacherAssignment'
+          description: ''
+  /api/v1/teacher/assignments/{assignment_id}/:
+    get:
+      operationId: teacher_assignments_retrieve
+      summary: Get assignment detail
+      parameters:
+      - in: path
+        name: assignment_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Teacher Assignments
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeacherAssignment'
+          description: ''
+  /api/v1/teacher/assignments/{assignment_id}/delete/:
+    delete:
+      operationId: teacher_assignments_delete_destroy
+      summary: Delete assignment
+      parameters:
+      - in: path
+        name: assignment_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Teacher Assignments
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '204':
+          description: Deleted.
+  /api/v1/teacher/assignments/{assignment_id}/review/:
+    get:
+      operationId: teacher_assignments_review_retrieve
+      summary: Assignment review panel
+      parameters:
+      - in: path
+        name: assignment_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Teacher Assignments
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Review summary + submissions.
+  /api/v1/teacher/assignments/{assignment_id}/update/:
+    put:
+      operationId: teacher_assignments_update_update
+      summary: Update assignment
+      parameters:
+      - in: path
+        name: assignment_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Teacher Assignments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeacherAssignmentWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TeacherAssignmentWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TeacherAssignmentWriteRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeacherAssignment'
+          description: ''
+    patch:
+      operationId: teacher_assignments_update_partial_update
+      summary: Update assignment
+      parameters:
+      - in: path
+        name: assignment_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Teacher Assignments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTeacherAssignmentWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedTeacherAssignmentWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedTeacherAssignmentWriteRequest'
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeacherAssignment'
+          description: ''
+  /api/v1/teacher/assignments/create/:
+    post:
+      operationId: teacher_assignments_create_create
+      summary: Create assignment
+      tags:
+      - Teacher Assignments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeacherAssignmentWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TeacherAssignmentWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TeacherAssignmentWriteRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeacherAssignment'
+          description: ''
+  /api/v1/teacher/auth/forgot-password/reset/:
+    post:
+      operationId: teacher_auth_forgot_password_reset_create
+      summary: Reset password
+      tags:
+      - Teacher Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeacherResetPasswordRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TeacherResetPasswordRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TeacherResetPasswordRequestRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          description: Password reset.
+  /api/v1/teacher/auth/forgot-password/send-otp/:
+    post:
+      operationId: teacher_auth_forgot_password_send_otp_create
+      summary: Send OTP for password reset
+      tags:
+      - Teacher Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendOTPRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SendOTPRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SendOTPRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          description: OTP sent.
+  /api/v1/teacher/auth/forgot-password/verify-otp/:
+    post:
+      operationId: teacher_auth_forgot_password_verify_otp_create
+      summary: Verify OTP
+      tags:
+      - Teacher Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyOTPRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VerifyOTPRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VerifyOTPRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          description: OTP verified, reset token returned.
+  /api/v1/teacher/auth/login/:
+    post:
+      operationId: teacher_auth_login_create
+      summary: Teacher login
+      tags:
+      - Teacher Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeacherLoginRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TeacherLoginRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TeacherLoginRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+          description: ''
+        '400':
+          description: Invalid credentials.
+  /api/v1/teacher/auth/logout/:
+    post:
+      operationId: teacher_auth_logout_create
+      summary: Teacher logout
+      tags:
+      - Teacher Auth
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Logged out.
+  /api/v1/teacher/auth/refresh/:
+    post:
+      operationId: teacher_auth_refresh_create
+      summary: Refresh token
+      tags:
+      - Teacher Auth
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+          description: ''
+        '401':
+          description: Invalid or expired token.
+  /api/v1/teacher/auth/signup/:
+    post:
+      operationId: teacher_auth_signup_create
+      summary: Teacher signup
+      tags:
+      - Teacher Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeacherSignupRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TeacherSignupRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TeacherSignupRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+          description: ''
+        '400':
+          description: Validation error.
+        '409':
+          description: Email already exists.
+  /api/v1/teacher/courses/:
+    get:
+      operationId: teacher_courses_list
+      summary: List teacher courses
+      tags:
+      - Teacher Courses
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TeacherCourseList'
+          description: ''
+  /api/v1/teacher/courses/{course_id}/:
+    get:
+      operationId: teacher_courses_retrieve
+      summary: Get course detail
+      parameters:
+      - in: path
+        name: course_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Teacher Courses
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeacherCourseList'
+          description: ''
+        '404':
+          description: Not found.
+  /api/v1/teacher/courses/{course_id}/delete/:
+    delete:
+      operationId: teacher_courses_delete_destroy
+      summary: Delete course
+      parameters:
+      - in: path
+        name: course_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Teacher Courses
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '204':
+          description: Deleted.
+  /api/v1/teacher/courses/{course_id}/lessons/:
+    get:
+      operationId: teacher_courses_lessons_list
+      summary: List course lessons
+      parameters:
+      - in: path
+        name: course_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Teacher Courses
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TeacherLesson'
+          description: ''
+  /api/v1/teacher/courses/{course_id}/lessons/create/:
+    post:
+      operationId: teacher_courses_lessons_create_create
+      summary: Create lesson
+      parameters:
+      - in: path
+        name: course_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Teacher Courses
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeacherLessonRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TeacherLessonRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TeacherLessonRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeacherLesson'
+          description: ''
+  /api/v1/teacher/courses/{course_id}/update/:
+    put:
+      operationId: teacher_courses_update_update
+      summary: Update course
+      parameters:
+      - in: path
+        name: course_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Teacher Courses
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeacherCourseWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TeacherCourseWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TeacherCourseWriteRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeacherCourseList'
+          description: ''
+    patch:
+      operationId: teacher_courses_update_partial_update
+      summary: Update course
+      parameters:
+      - in: path
+        name: course_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Teacher Courses
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTeacherCourseWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedTeacherCourseWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedTeacherCourseWriteRequest'
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeacherCourseList'
+          description: ''
+  /api/v1/teacher/courses/create/:
+    post:
+      operationId: teacher_courses_create_create
+      summary: Create course
+      tags:
+      - Teacher Courses
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeacherCourseWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TeacherCourseWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TeacherCourseWriteRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeacherCourseList'
+          description: ''
+  /api/v1/teacher/dashboard/:
+    get:
+      operationId: teacher_dashboard_retrieve
+      summary: Teacher dashboard
+      tags:
+      - Teacher Dashboard
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeacherDashboard'
+          description: ''
+  /api/v1/teacher/lessons/{lesson_id}/:
+    get:
+      operationId: teacher_lessons_retrieve
+      summary: Get lesson detail
+      parameters:
+      - in: path
+        name: lesson_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Teacher Courses
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeacherLesson'
+          description: ''
+        '404':
+          description: Not found.
+  /api/v1/teacher/lessons/{lesson_id}/delete/:
+    delete:
+      operationId: teacher_lessons_delete_destroy
+      summary: Delete lesson
+      parameters:
+      - in: path
+        name: lesson_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Teacher Courses
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '204':
+          description: Deleted.
+  /api/v1/teacher/lessons/{lesson_id}/update/:
+    put:
+      operationId: teacher_lessons_update_update
+      summary: Update lesson
+      parameters:
+      - in: path
+        name: lesson_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Teacher Courses
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeacherLessonRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TeacherLessonRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TeacherLessonRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeacherLesson'
+          description: ''
+    patch:
+      operationId: teacher_lessons_update_partial_update
+      summary: Update lesson
+      parameters:
+      - in: path
+        name: lesson_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Teacher Courses
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTeacherLessonRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedTeacherLessonRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedTeacherLessonRequest'
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeacherLesson'
+          description: ''
+  /api/v1/teacher/notifications/:
+    get:
+      operationId: teacher_notifications_list
+      summary: List notifications
+      tags:
+      - Teacher Notifications
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TeacherNotification'
+          description: ''
+  /api/v1/teacher/notifications/{notification_id}/read/:
+    patch:
+      operationId: teacher_notifications_read_partial_update
+      summary: Mark notification as read
+      parameters:
+      - in: path
+        name: notification_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Teacher Notifications
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Marked as read.
+  /api/v1/teacher/quizzes/:
+    get:
+      operationId: teacher_quizzes_list
+      summary: List quizzes
+      tags:
+      - Teacher Quizzes
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TeacherQuiz'
+          description: ''
+  /api/v1/teacher/quizzes/{quiz_id}/:
+    get:
+      operationId: teacher_quizzes_retrieve
+      summary: Get quiz detail
+      parameters:
+      - in: path
+        name: quiz_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Teacher Quizzes
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeacherQuiz'
+          description: ''
+        '404':
+          description: Not found.
+  /api/v1/teacher/quizzes/{quiz_id}/feedback/:
+    post:
+      operationId: teacher_quizzes_feedback_create
+      summary: Send feedback to student
+      parameters:
+      - in: path
+        name: quiz_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Teacher Quizzes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuizFeedbackRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/QuizFeedbackRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/QuizFeedbackRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Feedback sent.
+  /api/v1/teacher/quizzes/{quiz_id}/results/:
+    get:
+      operationId: teacher_quizzes_results_list
+      summary: Quiz results
+      parameters:
+      - in: path
+        name: quiz_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Teacher Quizzes
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/QuizResult'
+          description: ''
+  /api/v1/teacher/quizzes/{quiz_id}/update/:
+    put:
+      operationId: teacher_quizzes_update_update
+      summary: Update quiz
+      parameters:
+      - in: path
+        name: quiz_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Teacher Quizzes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuizWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/QuizWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/QuizWriteRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeacherQuiz'
+          description: ''
+    patch:
+      operationId: teacher_quizzes_update_partial_update
+      summary: Update quiz
+      parameters:
+      - in: path
+        name: quiz_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Teacher Quizzes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedQuizWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedQuizWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedQuizWriteRequest'
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeacherQuiz'
+          description: ''
+  /api/v1/teacher/quizzes/create/:
+    post:
+      operationId: teacher_quizzes_create_create
+      summary: Create quiz
+      tags:
+      - Teacher Quizzes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuizWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/QuizWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/QuizWriteRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeacherQuiz'
+          description: ''
+  /api/v1/teacher/settings/notifications/:
+    get:
+      operationId: teacher_settings_notifications_retrieve
+      summary: Get notification preferences
+      tags:
+      - Teacher Settings
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationPreference'
+          description: ''
+  /api/v1/teacher/settings/notifications/update/:
+    patch:
+      operationId: teacher_settings_notifications_update_partial_update
+      summary: Update notification preferences
+      tags:
+      - Teacher Settings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedNotificationPreferenceRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedNotificationPreferenceRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedNotificationPreferenceRequest'
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationPreference'
+          description: ''
+  /api/v1/teacher/settings/profile/:
+    get:
+      operationId: teacher_settings_profile_retrieve
+      summary: Get teacher profile
+      tags:
+      - Teacher Settings
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeacherProfile'
+          description: ''
+  /api/v1/teacher/settings/profile/update/:
+    patch:
+      operationId: teacher_settings_profile_update_partial_update
+      summary: Update teacher profile
+      tags:
+      - Teacher Settings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTeacherProfileUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedTeacherProfileUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedTeacherProfileUpdateRequest'
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeacherProfile'
+          description: ''
+  /api/v1/teacher/students/:
+    get:
+      operationId: teacher_students_retrieve
+      summary: List students with performance stats
+      tags:
+      - Teacher Students
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeacherStudentList'
+          description: ''
+  /api/v1/teacher/submissions/{submission_id}/grade/:
+    post:
+      operationId: teacher_submissions_grade_create
+      summary: Grade a submission
+      parameters:
+      - in: path
+        name: submission_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Teacher Assignments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GradeSubmissionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GradeSubmissionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GradeSubmissionRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeacherSubmission'
+          description: ''
   /api/v1/xp/add/:
     post:
-      operationId: xp_add_create
-      description: |-
-        POST /xp/add/
-        Add XP to a student's account.
-        Used by other apps (assignments, quizzes, attendance).
+      operationId: xp_add
+      description: Add XP to the authenticated student's account.
+      summary: Add XP
       tags:
-      - xp
+      - XP
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/XPAddRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/XPAddRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/XPAddRequest'
+        required: true
       security:
       - jwtAuth: []
       - BearerAuth: []
       responses:
-        '200':
-          description: No response body
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/XPTransaction'
+          description: ''
   /api/v1/xp/history/:
     get:
-      operationId: xp_history_retrieve
-      description: |-
-        GET /xp/history/
-        Get XP transaction history.
+      operationId: xp_history
+      description: Returns paginated XP transaction history with optional source filter.
+      summary: Get XP history
       tags:
-      - xp
+      - XP
       security:
       - jwtAuth: []
       - BearerAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/XPHistory'
+          description: ''
   /api/v1/xp/total/:
     get:
-      operationId: xp_total_retrieve
-      description: |-
-        GET /xp/total/
-        Get total XP for the authenticated student.
+      operationId: xp_total
+      description: Returns total XP, transaction count, and breakdown by source.
+      summary: Get total XP
       tags:
-      - xp
+      - XP
       security:
       - jwtAuth: []
       - BearerAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/XPTotal'
+          description: ''
 components:
   schemas:
+    AddStudentRequest:
+      type: object
+      properties:
+        student_id:
+          type: string
+          minLength: 1
+        parent_access_code:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - parent_access_code
+      - student_id
+    Analytics:
+      type: object
+      properties:
+        overall_academic_trend:
+          type: array
+          items:
+            $ref: '#/components/schemas/TrendPoint'
+        study_hours:
+          type: array
+          items:
+            $ref: '#/components/schemas/StudyHoursPoint'
+        subject_breakdown:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubjectBreakdown'
+      required:
+      - overall_academic_trend
+      - study_hours
+      - subject_breakdown
+    AnswerRequest:
+      type: object
+      properties:
+        question_id:
+          type: integer
+        answer:
+          type: string
+          minLength: 1
+      required:
+      - answer
+      - question_id
     Assignment:
       type: object
       properties:
@@ -2338,6 +4552,20 @@ components:
           type: integer
           readOnly: true
           description: Teacher who created the assignment.
+        xp_reward:
+          type: integer
+          readOnly: true
+          description: XP reward for completing this assignment.
+        late_penalty_xp:
+          type: integer
+          readOnly: true
+          description: XP deducted for late submissions.
+        max_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+          description: Maximum possible score.
         created_at:
           type: string
           format: date-time
@@ -2349,7 +4577,68 @@ components:
       - created_by
       - due_date
       - id
+      - late_penalty_xp
+      - max_score
       - title
+      - xp_reward
+    AssignmentBrief:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        deadline:
+          type: string
+          format: date-time
+      required:
+      - deadline
+      - id
+      - title
+    AssignmentDetail:
+      type: object
+      properties:
+        title:
+          type: string
+        deadline:
+          type: string
+          format: date-time
+        xp_reward:
+          type: integer
+          nullable: true
+        teacher_file_url:
+          type: string
+          format: uri
+          nullable: true
+        submission_status:
+          type: string
+      required:
+      - deadline
+      - submission_status
+      - teacher_file_url
+      - title
+      - xp_reward
+    AssignmentSubmitRequest:
+      type: object
+      properties:
+        file:
+          type: string
+          format: binary
+      required:
+      - file
+    AssignmentSummary:
+      type: object
+      properties:
+        total:
+          type: integer
+        submitted:
+          type: integer
+        missing:
+          type: integer
+      required:
+      - missing
+      - submitted
+      - total
     AssignmentWriteRequest:
       type: object
       properties:
@@ -2368,6 +4657,26 @@ components:
       required:
       - due_date
       - title
+    Attendance:
+      type: object
+      properties:
+        total_study_hours:
+          type: number
+          format: double
+        study_streak:
+          type: integer
+        attendance_rate:
+          type: number
+          format: double
+        activity_calendar:
+          type: array
+          items:
+            $ref: '#/components/schemas/CalendarDay'
+      required:
+      - activity_calendar
+      - attendance_rate
+      - study_streak
+      - total_study_hours
     AttendanceRecord:
       type: object
       properties:
@@ -2452,6 +4761,16 @@ components:
         * `present` - Present
         * `absent` - Absent
         * `late` - Late
+    CalendarDay:
+      type: object
+      properties:
+        date:
+          type: string
+        status:
+          type: string
+      required:
+      - date
+      - status
     ChangePasswordRequest:
       type: object
       properties:
@@ -2468,6 +4787,81 @@ components:
       required:
       - new_password
       - old_password
+    ChatRequestRequest:
+      type: object
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 1000
+      required:
+      - message
+    ChatResponse:
+      type: object
+      properties:
+        reply:
+          type: string
+      required:
+      - reply
+    ClassCard:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        teacher:
+          type: object
+          additionalProperties: {}
+          readOnly: true
+        enrollment_count:
+          type: integer
+        target_capacity:
+          type: integer
+        capacity_utilization:
+          type: number
+          format: double
+        average_gpa:
+          type: number
+          format: double
+        health_status:
+          type: string
+        gpa_trend:
+          type: string
+      required:
+      - average_gpa
+      - capacity_utilization
+      - enrollment_count
+      - gpa_trend
+      - health_status
+      - id
+      - target_capacity
+      - teacher
+      - title
+    ClassDetail:
+      type: object
+      properties:
+        class_info:
+          type: object
+          additionalProperties: {}
+        student_distribution:
+          type: object
+          additionalProperties: {}
+        leaderboard:
+          type: array
+          items: {}
+        gpa_trend_6m:
+          type: array
+          items: {}
+        teacher_performance:
+          type: object
+          additionalProperties: {}
+      required:
+      - class_info
+      - gpa_trend_6m
+      - leaderboard
+      - student_distribution
+      - teacher_performance
     CompletionStatusEnum:
       enum:
       - not_started
@@ -2496,6 +4890,10 @@ components:
           - $ref: '#/components/schemas/User'
           readOnly: true
           description: Teacher who owns the course.
+        is_published:
+          type: boolean
+          readOnly: true
+          description: Whether the course is published.
         created_at:
           type: string
           format: date-time
@@ -2504,8 +4902,52 @@ components:
       required:
       - created_at
       - id
+      - is_published
       - teacher
       - title
+    CourseDetail:
+      type: object
+      properties:
+        course_name:
+          type: string
+        completion_percentage:
+          type: number
+          format: double
+        lessons:
+          type: array
+          items:
+            $ref: '#/components/schemas/StudentLesson'
+        quizzes:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuizBrief'
+        assignments:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssignmentBrief'
+      required:
+      - assignments
+      - completion_percentage
+      - course_name
+      - lessons
+      - quizzes
+    CourseList:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        completion_percentage:
+          type: number
+          format: double
+        status:
+          type: string
+      required:
+      - completion_percentage
+      - id
+      - name
+      - status
     CourseProgress:
       type: object
       properties:
@@ -2537,6 +4979,19 @@ components:
       - student_id
       - student_name
       - study_time_formatted
+    CourseRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          description: Course title.
+        description:
+          type: string
+          minLength: 1
+          description: Course overview shown to students.
+      required:
+      - title
     CourseWriteRequest:
       type: object
       properties:
@@ -2550,29 +5005,109 @@ components:
           description: Optional course description.
       required:
       - title
+    DailyMaster:
+      type: object
+      properties:
+        tasks_total:
+          type: integer
+        tasks_completed:
+          type: integer
+        completion_percentage:
+          type: integer
+        level:
+          type: integer
+      required:
+      - completion_percentage
+      - level
+      - tasks_completed
+      - tasks_total
     Dashboard:
       type: object
       properties:
         gpa:
-          type: object
-          additionalProperties: {}
+          $ref: '#/components/schemas/ParentGPA'
         study_hours:
+          $ref: '#/components/schemas/StudyHours'
+        xp:
           type: object
           additionalProperties: {}
         engagement:
           type: integer
-        subjects:
+        subject_performance:
           type: array
-          items: {}
+          items:
+            $ref: '#/components/schemas/SubjectPerformance'
+        upcoming_schedule:
+          type: array
+          items:
+            $ref: '#/components/schemas/UpcomingItem'
         recent_activity:
           type: array
-          items: {}
+          items:
+            $ref: '#/components/schemas/RecentActivity'
       required:
       - engagement
       - gpa
       - recent_activity
       - study_hours
-      - subjects
+      - subject_performance
+      - upcoming_schedule
+      - xp
+    DashboardInsight:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        severity:
+          allOf:
+          - $ref: '#/components/schemas/SeverityEnum'
+          readOnly: true
+        insight_type:
+          allOf:
+          - $ref: '#/components/schemas/InsightTypeEnum'
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        description:
+          type: string
+          readOnly: true
+        recommendation:
+          type: string
+          readOnly: true
+        is_dismissed:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - description
+      - id
+      - insight_type
+      - is_dismissed
+      - recommendation
+      - severity
+      - title
+    DashboardOverview:
+      type: object
+      properties:
+        kpis:
+          type: object
+          additionalProperties: {}
+        alerts:
+          type: array
+          items: {}
+        charts:
+          type: object
+          additionalProperties: {}
+      required:
+      - alerts
+      - charts
+      - kpis
     EnrollmentCode:
       type: object
       properties:
@@ -2628,6 +5163,16 @@ components:
         * `available` - Available
         * `used` - Used
         * `revoked` - Revoked
+    EventTypeEnum:
+      enum:
+      - new_submission
+      - missing_assignment
+      - grade_update
+      type: string
+      description: |-
+        * `new_submission` - New Submission
+        * `missing_assignment` - Missing Assignment
+        * `grade_update` - Grade Update
     ForgotPasswordRequest:
       type: object
       properties:
@@ -2696,6 +5241,17 @@ components:
       - id
       - score
       - submission
+    GradeSubmissionRequest:
+      type: object
+      properties:
+        raw_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        feedback:
+          type: string
+      required:
+      - raw_score
     GradeWriteRequest:
       type: object
       properties:
@@ -2710,6 +5266,33 @@ components:
           description: Optional written feedback for the student.
       required:
       - score
+    InsightTypeEnum:
+      enum:
+      - overcrowded_class
+      - performance_drop
+      - at_risk_student
+      - teacher_decline
+      - capacity_low
+      type: string
+      description: |-
+        * `overcrowded_class` - Overcrowded Class
+        * `performance_drop` - Performance Drop
+        * `at_risk_student` - At-Risk Student
+        * `teacher_decline` - Teacher Performance Decline
+        * `capacity_low` - Low Capacity Utilization
+    LeaderboardEntry:
+      type: object
+      properties:
+        rank:
+          type: integer
+        username:
+          type: string
+        total_xp:
+          type: integer
+      required:
+      - rank
+      - total_xp
+      - username
     Lesson:
       type: object
       properties:
@@ -2728,16 +5311,31 @@ components:
           type: integer
           default: 0
           description: Display order within the course. Lower numbers appear first.
+        xp_reward:
+          type: integer
+          readOnly: true
+          description: XP reward for completing this lesson.
+        bonus_xp:
+          type: integer
+          readOnly: true
+          description: Bonus XP for completing this lesson.
+        status:
+          type: string
+          readOnly: true
+          description: 'Lesson status: draft or published.'
         created_at:
           type: string
           format: date-time
           readOnly: true
           description: Lesson creation timestamp.
       required:
+      - bonus_xp
       - content
       - created_at
       - id
+      - status
       - title
+      - xp_reward
     LessonActivity:
       type: object
       properties:
@@ -2821,6 +5419,52 @@ components:
           type: boolean
           default: false
           description: Mark lesson as completed.
+    LinkedStudent:
+      type: object
+      properties:
+        id:
+          type: integer
+        full_name:
+          type: string
+        student_id:
+          type: string
+        grade_name:
+          type: string
+          nullable: true
+        school_name:
+          type: string
+          nullable: true
+      required:
+      - full_name
+      - grade_name
+      - id
+      - school_name
+      - student_id
+    LinkedStudentRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        full_name:
+          type: string
+          minLength: 1
+        student_id:
+          type: string
+          minLength: 1
+        grade_name:
+          type: string
+          nullable: true
+          minLength: 1
+        school_name:
+          type: string
+          nullable: true
+          minLength: 1
+      required:
+      - full_name
+      - grade_name
+      - id
+      - school_name
+      - student_id
     LoginRequest:
       type: object
       properties:
@@ -2852,8 +5496,12 @@ components:
           allOf:
           - $ref: '#/components/schemas/User'
           description: Authenticated user details.
+        is_first_login:
+          type: boolean
+          description: True when the parent has no linked students yet.
       required:
       - access
+      - is_first_login
       - refresh
       - user
     LogoutRequest:
@@ -2921,6 +5569,26 @@ components:
         * `student` - Student
         * `teacher` - Teacher
         * `admin` - Admin
+    MissionItem:
+      type: object
+      properties:
+        title:
+          type: string
+        subject:
+          type: string
+          nullable: true
+        type:
+          type: string
+        xp_reward:
+          type: integer
+        is_completed:
+          type: boolean
+      required:
+      - is_completed
+      - subject
+      - title
+      - type
+      - xp_reward
     Notification:
       type: object
       properties:
@@ -2951,12 +5619,24 @@ components:
           format: date-time
           readOnly: true
           description: Timestamp when the notification was generated.
+        related_course:
+          type: integer
+          readOnly: true
+          nullable: true
+          description: ID of the related course, if applicable.
+        related_content_id:
+          type: integer
+          readOnly: true
+          nullable: true
+          description: ID of the related content item, if applicable.
       required:
       - body
       - created_at
       - event_type
       - id
       - is_read
+      - related_content_id
+      - related_course
       - title
     NotificationListResponse:
       type: object
@@ -2973,6 +5653,80 @@ components:
       required:
       - results
       - unread_count
+    NotificationPreference:
+      type: object
+      properties:
+        email_notifications:
+          type: boolean
+        missing_assignments:
+          type: boolean
+        new_submissions:
+          type: boolean
+    NotificationRead:
+      type: object
+      properties:
+        message:
+          type: string
+          readOnly: true
+      required:
+      - message
+    OAuthRequest:
+      type: object
+      properties:
+        provider:
+          allOf:
+          - $ref: '#/components/schemas/ProviderEnum'
+          description: |-
+            OAuth provider: google or facebook.
+
+            * `google` - google
+            * `facebook` - facebook
+        access_token:
+          type: string
+          minLength: 1
+          description: Access token from the provider.
+      required:
+      - access_token
+      - provider
+    ParentGPA:
+      type: object
+      properties:
+        value:
+          type: number
+          format: double
+        change:
+          type: number
+          format: double
+      required:
+      - change
+      - value
+    ParentNotification:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        body:
+          type: string
+        event_type:
+          type: string
+        is_read:
+          type: boolean
+        reference_id:
+          type: integer
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - body
+      - created_at
+      - event_type
+      - id
+      - is_read
+      - reference_id
+      - title
     ParentProfile:
       type: object
       properties:
@@ -3002,6 +5756,162 @@ components:
           description: ID of the student to link to this parent account.
       required:
       - child_id
+    PatchedNotificationPreferenceRequest:
+      type: object
+      properties:
+        email_notifications:
+          type: boolean
+        missing_assignments:
+          type: boolean
+        new_submissions:
+          type: boolean
+    PatchedQuizWriteRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        course_id:
+          type: integer
+        lesson_id:
+          type: integer
+          nullable: true
+        max_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        duration_minutes:
+          type: integer
+          minimum: 1
+        xp_reward:
+          type: integer
+          minimum: 0
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        questions:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuestionWriteRequest'
+    PatchedSettingsRequest:
+      type: object
+      properties:
+        full_name:
+          type: string
+          minLength: 1
+        notifications_enabled:
+          type: boolean
+    PatchedTeacherAssignmentWriteRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+        due_date:
+          type: string
+          format: date-time
+        xp_reward:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        late_penalty_xp:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        teacher_file:
+          type: string
+          format: binary
+        max_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+    PatchedTeacherCourseWriteRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+        grade:
+          type: integer
+          nullable: true
+        is_published:
+          type: boolean
+    PatchedTeacherLessonRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        content:
+          type: string
+          minLength: 1
+        order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        status:
+          $ref: '#/components/schemas/TeacherLessonStatusEnum'
+        video_url:
+          type: string
+          format: uri
+          maxLength: 200
+        pdf_file:
+          type: string
+          format: binary
+        resources:
+          type: string
+          format: binary
+        xp_reward:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        bonus_xp:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        start_time:
+          type: string
+          format: date-time
+          nullable: true
+          description: Scheduled lesson start time
+        end_time:
+          type: string
+          format: date-time
+          nullable: true
+          description: Scheduled lesson end time
+    PatchedTeacherProfileUpdateRequest:
+      type: object
+      properties:
+        bio:
+          type: string
+        avatar:
+          type: string
+          format: uri
+          maxLength: 200
+        preferred_language:
+          type: string
+          minLength: 1
+          maxLength: 10
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 255
     ProfileUpdateRequest:
       type: object
       properties:
@@ -3018,6 +5928,58 @@ components:
           type: string
           format: uri
           description: URL to avatar image.
+    ProviderEnum:
+      enum:
+      - google
+      - facebook
+      type: string
+      description: |-
+        * `google` - google
+        * `facebook` - facebook
+    Question:
+      type: object
+      properties:
+        id:
+          type: integer
+        text:
+          type: string
+        options:
+          type: array
+          items:
+            type: string
+          nullable: true
+      required:
+      - id
+      - options
+      - text
+    QuestionMap:
+      type: object
+      properties:
+        question_number:
+          type: integer
+        status:
+          type: string
+      required:
+      - question_number
+      - status
+    QuestionWriteRequest:
+      type: object
+      properties:
+        text:
+          type: string
+          minLength: 1
+        order:
+          type: integer
+          default: 0
+        options:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          minItems: 4
+      required:
+      - options
+      - text
     Quiz:
       type: object
       properties:
@@ -3031,6 +5993,10 @@ components:
           type: integer
           nullable: true
           readOnly: true
+        teacher:
+          type: integer
+          readOnly: true
+          nullable: true
         title:
           type: string
           maxLength: 255
@@ -3038,6 +6004,27 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        duration_minutes:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        xp_reward:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        start_time:
+          type: string
+          format: date-time
+          nullable: true
+        end_time:
+          type: string
+          format: date-time
+          nullable: true
+        is_locked:
+          type: boolean
+          readOnly: true
         created_at:
           type: string
           format: date-time
@@ -3046,8 +6033,10 @@ components:
       - course_id
       - created_at
       - id
+      - is_locked
       - lesson_id
       - max_score
+      - teacher
       - title
     QuizAttempt:
       type: object
@@ -3071,6 +6060,27 @@ components:
       - id
       - score
       - submitted_at
+    QuizBrief:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+      required:
+      - id
+      - title
+    QuizFeedbackRequest:
+      type: object
+      properties:
+        student_id:
+          type: integer
+        message:
+          type: string
+          minLength: 1
+      required:
+      - message
+      - student_id
     QuizRequest:
       type: object
       properties:
@@ -3082,8 +6092,81 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        duration_minutes:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        xp_reward:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        start_time:
+          type: string
+          format: date-time
+          nullable: true
+        end_time:
+          type: string
+          format: date-time
+          nullable: true
       required:
       - max_score
+      - title
+    QuizResult:
+      type: object
+      properties:
+        student_id:
+          type: integer
+        student_name:
+          type: string
+        raw_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        max_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        normalized_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        xp_earned:
+          type: integer
+        status:
+          type: string
+      required:
+      - max_score
+      - normalized_score
+      - raw_score
+      - status
+      - student_id
+      - student_name
+      - xp_earned
+    QuizStart:
+      type: object
+      properties:
+        quiz_id:
+          type: integer
+        title:
+          type: string
+        time_limit_seconds:
+          type: integer
+          nullable: true
+        questions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Question'
+        question_map:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuestionMap'
+      required:
+      - question_map
+      - questions
+      - quiz_id
+      - time_limit_seconds
       - title
     QuizSubmitRequest:
       type: object
@@ -3095,6 +6178,60 @@ components:
           description: Score for this attempt.
       required:
       - score
+    QuizWriteRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        course_id:
+          type: integer
+        lesson_id:
+          type: integer
+          nullable: true
+        max_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        duration_minutes:
+          type: integer
+          minimum: 1
+        xp_reward:
+          type: integer
+          minimum: 0
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        questions:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuestionWriteRequest'
+      required:
+      - course_id
+      - duration_minutes
+      - end_time
+      - max_score
+      - questions
+      - start_time
+      - title
+      - xp_reward
+    RecentActivity:
+      type: object
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        timestamp:
+          type: string
+      required:
+      - timestamp
+      - title
+      - type
     RegisterRequest:
       type: object
       properties:
@@ -3140,6 +6277,48 @@ components:
         * `parent` - Parent
         * `teacher` - Teacher
         * `school_admin` - School Admin
+    Report:
+      type: object
+      properties:
+        month:
+          type: string
+        overall_average:
+          type: number
+          format: double
+        assignment_summary:
+          $ref: '#/components/schemas/AssignmentSummary'
+        total_xp:
+          type: integer
+        subject_performance:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubjectReport'
+      required:
+      - assignment_summary
+      - month
+      - overall_average
+      - subject_performance
+      - total_xp
+    ReportSummary:
+      type: object
+      properties:
+        filters_applied:
+          type: object
+          additionalProperties: {}
+        summary:
+          type: object
+          additionalProperties: {}
+        period_comparison:
+          type: object
+          additionalProperties: {}
+        insights:
+          type: array
+          items: {}
+      required:
+      - filters_applied
+      - insights
+      - period_comparison
+      - summary
     ResetPasswordRequest:
       type: object
       properties:
@@ -3155,6 +6334,21 @@ components:
       required:
       - new_password
       - token
+    RiskSummary:
+      type: object
+      properties:
+        total_at_risk:
+          type: integer
+        by_tier:
+          type: object
+          additionalProperties: {}
+        top_at_risk_students:
+          type: array
+          items: {}
+      required:
+      - by_tier
+      - top_at_risk_students
+      - total_at_risk
     School:
       type: object
       properties:
@@ -3193,6 +6387,88 @@ components:
           maxLength: 255
       required:
       - name
+    SendOTPRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+      required:
+      - email
+    SessionTotal:
+      type: object
+      description: Serializer for total study time response.
+      properties:
+        total_duration_seconds:
+          type: integer
+        total_duration_formatted:
+          type: string
+        session_count:
+          type: integer
+      required:
+      - session_count
+      - total_duration_formatted
+      - total_duration_seconds
+    Settings:
+      type: object
+      properties:
+        full_name:
+          type: string
+        email:
+          type: string
+          format: email
+          readOnly: true
+        notifications_enabled:
+          type: boolean
+        linked_students:
+          type: array
+          items:
+            $ref: '#/components/schemas/LinkedStudent'
+          readOnly: true
+      required:
+      - email
+      - full_name
+      - linked_students
+      - notifications_enabled
+    SeverityEnum:
+      enum:
+      - info
+      - warning
+      - critical
+      type: string
+      description: |-
+        * `info` - Info
+        * `warning` - Warning
+        * `critical` - Critical
+    SignupResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT access token.
+        user_id:
+          type: integer
+          description: ID of the created user.
+        is_first_login:
+          type: boolean
+          description: True when the parent has no linked students yet.
+      required:
+      - is_first_login
+      - token
+      - user_id
+    SourceEnum:
+      enum:
+      - study
+      - assignment
+      - quiz
+      - attendance
+      type: string
+      description: |-
+        * `study` - Study Session
+        * `assignment` - Assignment
+        * `quiz` - Quiz
+        * `attendance` - Attendance
     StudentAttendance:
       type: object
       properties:
@@ -3232,6 +6508,462 @@ components:
       - id
       - is_active
       - student
+    StudentDashboard:
+      type: object
+      properties:
+        total_xp:
+          type: integer
+        daily_streak:
+          type: integer
+        todays_tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/TodaysTask'
+        daily_master:
+          $ref: '#/components/schemas/DailyMaster'
+        leaderboard:
+          type: array
+          items:
+            $ref: '#/components/schemas/LeaderboardEntry'
+      required:
+      - daily_master
+      - daily_streak
+      - leaderboard
+      - todays_tasks
+      - total_xp
+    StudentLesson:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        is_completed:
+          type: boolean
+      required:
+      - id
+      - is_completed
+      - title
+    StudentList:
+      type: object
+      properties:
+        id:
+          type: integer
+        full_name:
+          type: string
+        student_id:
+          type: string
+        grade_name:
+          type: string
+          nullable: true
+        school_name:
+          type: string
+          nullable: true
+      required:
+      - full_name
+      - grade_name
+      - id
+      - school_name
+      - student_id
+    StudentLoginRequestRequest:
+      type: object
+      properties:
+        school_id:
+          type: integer
+        email:
+          type: string
+          format: email
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - email
+      - password
+      - school_id
+    StudentLoginResponse:
+      type: object
+      properties:
+        access:
+          type: string
+        refresh:
+          type: string
+        user:
+          type: object
+          additionalProperties: {}
+        student:
+          type: object
+          additionalProperties: {}
+      required:
+      - access
+      - refresh
+      - student
+      - user
+    StudentLogoutRequestRequest:
+      type: object
+      properties:
+        refresh_token:
+          type: string
+          minLength: 1
+      required:
+      - refresh_token
+    StudentNote:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        author:
+          type: string
+          readOnly: true
+        note:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - author
+      - created_at
+      - id
+      - note
+      - updated_at
+    StudentNoteCreateRequest:
+      type: object
+      properties:
+        note:
+          type: string
+          minLength: 1
+          maxLength: 5000
+      required:
+      - note
+    StudentNotification:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+        message:
+          type: string
+        is_read:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - created_at
+      - id
+      - is_read
+      - message
+      - type
+    StudentProfile:
+      type: object
+      properties:
+        student:
+          type: object
+          additionalProperties: {}
+        academic_history:
+          type: object
+          additionalProperties: {}
+        interventions:
+          type: array
+          items: {}
+        notes:
+          type: array
+          items: {}
+      required:
+      - academic_history
+      - interventions
+      - notes
+      - student
+    StudentQuizResult:
+      type: object
+      properties:
+        score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        percentage:
+          type: number
+          format: double
+        passed:
+          type: boolean
+        xp_awarded:
+          type: integer
+      required:
+      - passed
+      - percentage
+      - score
+      - xp_awarded
+    StudentQuizSubmitRequestRequest:
+      type: object
+      properties:
+        answers:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnswerRequest'
+      required:
+      - answers
+    StudentResetPasswordRequestRequest:
+      type: object
+      properties:
+        reset_token:
+          type: string
+          minLength: 1
+        new_password:
+          type: string
+          writeOnly: true
+          minLength: 8
+      required:
+      - new_password
+      - reset_token
+    StudentSendOtpRequestRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+      required:
+      - email
+    StudentSettings:
+      type: object
+      properties:
+        full_name:
+          type: string
+        school:
+          type: string
+          nullable: true
+        student_id:
+          type: string
+        grade:
+          type: string
+          nullable: true
+        total_xp:
+          type: integer
+        courses_count:
+          type: integer
+      required:
+      - courses_count
+      - full_name
+      - grade
+      - school
+      - student_id
+      - total_xp
+    StudentSignupRequestRequest:
+      type: object
+      properties:
+        school_id:
+          type: integer
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 8
+        student_code:
+          type: string
+          minLength: 1
+      required:
+      - email
+      - full_name
+      - password
+      - school_id
+      - student_code
+    StudentSignupResponse:
+      type: object
+      properties:
+        access:
+          type: string
+        refresh:
+          type: string
+        user:
+          type: object
+          additionalProperties: {}
+        student:
+          type: object
+          additionalProperties: {}
+      required:
+      - access
+      - refresh
+      - student
+      - user
+    StudentTask:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        student_id:
+          type: integer
+          readOnly: true
+        course_id:
+          type: integer
+          readOnly: true
+        content_type:
+          type: string
+          readOnly: true
+        content_id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        status:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        completed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - completed_at
+      - content_id
+      - content_type
+      - course_id
+      - created_at
+      - id
+      - status
+      - student_id
+      - title
+    StudentTokenRefreshRequestRequest:
+      type: object
+      properties:
+        refresh_token:
+          type: string
+          minLength: 1
+      required:
+      - refresh_token
+    StudentVerifyOtpRequestRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        otp_code:
+          type: string
+          minLength: 1
+      required:
+      - email
+      - otp_code
+    StudyHours:
+      type: object
+      properties:
+        total:
+          type: number
+          format: double
+        weekly:
+          type: number
+          format: double
+        progress:
+          type: integer
+      required:
+      - progress
+      - total
+      - weekly
+    StudyHoursPoint:
+      type: object
+      properties:
+        period:
+          type: string
+        hours:
+          type: number
+          format: double
+      required:
+      - hours
+      - period
+    StudySession:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        student:
+          type: integer
+          readOnly: true
+        started_at:
+          type: string
+          format: date-time
+          readOnly: true
+        ended_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        duration:
+          type: integer
+          readOnly: true
+          nullable: true
+        xp_earned:
+          type: integer
+          readOnly: true
+      required:
+      - duration
+      - ended_at
+      - id
+      - started_at
+      - student
+      - xp_earned
+    SubjectBreakdown:
+      type: object
+      properties:
+        name:
+          type: string
+        average:
+          type: number
+          format: double
+        grade:
+          type: string
+      required:
+      - average
+      - grade
+      - name
+    SubjectPerformance:
+      type: object
+      properties:
+        name:
+          type: string
+        average:
+          type: number
+          format: double
+        grade:
+          type: string
+      required:
+      - average
+      - grade
+      - name
+    SubjectReport:
+      type: object
+      properties:
+        name:
+          type: string
+        average:
+          type: number
+          format: double
+        completed:
+          type: integer
+      required:
+      - average
+      - completed
+      - name
     Submission:
       type: object
       properties:
@@ -3250,6 +6982,11 @@ components:
         content:
           type: string
           description: The student's submitted work (text answer, link, or reference).
+        file:
+          type: string
+          format: uri
+          readOnly: true
+          description: Uploaded file for this submission.
         status:
           allOf:
           - $ref: '#/components/schemas/SubmissionStatusEnum'
@@ -3259,6 +6996,30 @@ components:
 
             * `pending` - Pending
             * `graded` - Graded
+        raw_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+          description: Raw score given by teacher.
+        normalized_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+          description: Normalized score (raw/max * 100).
+        xp_awarded:
+          type: integer
+          readOnly: true
+          description: XP awarded for this submission.
+        feedback:
+          type: string
+          readOnly: true
+          description: Teacher feedback.
+        is_graded:
+          type: boolean
+          readOnly: true
+          description: Whether this submission has been graded.
         submitted_at:
           type: string
           format: date-time
@@ -3266,22 +7027,38 @@ components:
           description: Timestamp when the submission was received.
       required:
       - assignment
-      - content
+      - feedback
+      - file
       - id
+      - is_graded
+      - normalized_score
+      - raw_score
       - status
       - student
       - submitted_at
+      - xp_awarded
     SubmissionCreateRequest:
       type: object
       properties:
         content:
           type: string
-          minLength: 1
           description: The student's answer or work. Plain text, a URL, or structured
             content.
           maxLength: 10000
+        file:
+          type: string
+          format: binary
+    SubmissionGradeSubmissionRequestRequest:
+      type: object
+      properties:
+        raw_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        feedback:
+          type: string
       required:
-      - content
+      - raw_score
     SubmissionStatusEnum:
       enum:
       - pending
@@ -3290,7 +7067,7 @@ components:
       description: |-
         * `pending` - Pending
         * `graded` - Graded
-    TeacherDashboard:
+    SubmissionTeacherDashboard:
       type: object
       properties:
         total_students:
@@ -3310,6 +7087,616 @@ components:
       - recent_activity
       - total_courses
       - total_students
+    SummaryBar:
+      type: object
+      properties:
+        current_streak:
+          type: integer
+        total_xp_today:
+          type: integer
+        daily_master_percentage:
+          type: integer
+      required:
+      - current_streak
+      - daily_master_percentage
+      - total_xp_today
+    TaskItem:
+      type: object
+      properties:
+        title:
+          type: string
+        subject:
+          type: string
+          nullable: true
+        type:
+          type: string
+        deadline:
+          type: string
+          format: date-time
+        xp_reward:
+          type: integer
+        status:
+          type: string
+      required:
+      - deadline
+      - status
+      - subject
+      - title
+      - type
+      - xp_reward
+    TasksResponse:
+      type: object
+      properties:
+        past_due:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskItem'
+        todays_missions:
+          type: array
+          items:
+            $ref: '#/components/schemas/MissionItem'
+        summary_bar:
+          $ref: '#/components/schemas/SummaryBar'
+      required:
+      - past_due
+      - summary_bar
+      - todays_missions
+    TeacherAssignment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        course:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        due_date:
+          type: string
+          format: date-time
+        xp_reward:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        late_penalty_xp:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        teacher_file:
+          type: string
+          format: uri
+        max_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - course
+      - created_at
+      - due_date
+      - id
+      - title
+    TeacherAssignmentWriteRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+        due_date:
+          type: string
+          format: date-time
+        xp_reward:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        late_penalty_xp:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        teacher_file:
+          type: string
+          format: binary
+        max_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+      required:
+      - due_date
+      - title
+    TeacherCourseList:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        grade:
+          type: integer
+          nullable: true
+        is_published:
+          type: boolean
+        lesson_count:
+          type: integer
+          readOnly: true
+        enrolled_students:
+          type: integer
+          readOnly: true
+        total_xp:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - enrolled_students
+      - id
+      - lesson_count
+      - title
+      - total_xp
+    TeacherCourseWriteRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+        grade:
+          type: integer
+          nullable: true
+        is_published:
+          type: boolean
+      required:
+      - title
+    TeacherDashboard:
+      type: object
+      properties:
+        total_students:
+          type: integer
+        total_courses:
+          type: integer
+        assignments_created:
+          type: integer
+        active_quizzes:
+          type: integer
+        top_performance:
+          type: array
+          items: {}
+        need_review:
+          type: array
+          items: {}
+        recent_student_activity:
+          type: array
+          items: {}
+      required:
+      - active_quizzes
+      - assignments_created
+      - need_review
+      - recent_student_activity
+      - top_performance
+      - total_courses
+      - total_students
+    TeacherLesson:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          maxLength: 255
+        content:
+          type: string
+        order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        status:
+          $ref: '#/components/schemas/TeacherLessonStatusEnum'
+        video_url:
+          type: string
+          format: uri
+          maxLength: 200
+        pdf_file:
+          type: string
+          format: uri
+        resources:
+          type: string
+          format: uri
+        xp_reward:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        bonus_xp:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        start_time:
+          type: string
+          format: date-time
+          nullable: true
+          description: Scheduled lesson start time
+        end_time:
+          type: string
+          format: date-time
+          nullable: true
+          description: Scheduled lesson end time
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - content
+      - created_at
+      - id
+      - title
+    TeacherLessonRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        content:
+          type: string
+          minLength: 1
+        order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        status:
+          $ref: '#/components/schemas/TeacherLessonStatusEnum'
+        video_url:
+          type: string
+          format: uri
+          maxLength: 200
+        pdf_file:
+          type: string
+          format: binary
+        resources:
+          type: string
+          format: binary
+        xp_reward:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        bonus_xp:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        start_time:
+          type: string
+          format: date-time
+          nullable: true
+          description: Scheduled lesson start time
+        end_time:
+          type: string
+          format: date-time
+          nullable: true
+          description: Scheduled lesson end time
+      required:
+      - content
+      - title
+    TeacherLessonStatusEnum:
+      enum:
+      - draft
+      - published
+      type: string
+      description: |-
+        * `draft` - Draft
+        * `published` - Published
+    TeacherLoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - email
+      - password
+    TeacherNotification:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        event_type:
+          $ref: '#/components/schemas/EventTypeEnum'
+        reference_type:
+          type: string
+          maxLength: 50
+        reference_id:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+        message:
+          type: string
+        is_read:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - event_type
+      - id
+      - message
+    TeacherProfile:
+      type: object
+      properties:
+        full_name:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          readOnly: true
+        school_name:
+          type: string
+          readOnly: true
+        teacher_id:
+          type: integer
+          readOnly: true
+        bio:
+          type: string
+        avatar:
+          type: string
+          format: uri
+          maxLength: 200
+        preferred_language:
+          type: string
+          maxLength: 10
+      required:
+      - email
+      - full_name
+      - school_name
+      - teacher_id
+    TeacherQuiz:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        course:
+          type: integer
+        lesson:
+          type: integer
+          nullable: true
+        title:
+          type: string
+          maxLength: 255
+        max_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        duration_minutes:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        xp_reward:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        start_time:
+          type: string
+          format: date-time
+          nullable: true
+        end_time:
+          type: string
+          format: date-time
+          nullable: true
+        is_locked:
+          type: boolean
+          readOnly: true
+        questions:
+          type: array
+          items: {}
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - course
+      - created_at
+      - id
+      - is_locked
+      - max_score
+      - questions
+      - title
+    TeacherResetPasswordRequestRequest:
+      type: object
+      properties:
+        reset_token:
+          type: string
+          minLength: 1
+        new_password:
+          type: string
+          minLength: 8
+      required:
+      - new_password
+      - reset_token
+    TeacherSignupRequest:
+      type: object
+      properties:
+        school_id:
+          type: integer
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        email:
+          type: string
+          format: email
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 8
+        teacher_code:
+          type: string
+          minLength: 1
+          maxLength: 50
+      required:
+      - email
+      - full_name
+      - password
+      - school_id
+      - teacher_code
+    TeacherStudent:
+      type: object
+      properties:
+        student_id:
+          type: integer
+        student_name:
+          type: string
+        avg_score_pct:
+          type: number
+          format: double
+        attendance_rate:
+          type: number
+          format: double
+        total_xp:
+          type: integer
+        status:
+          type: string
+      required:
+      - attendance_rate
+      - avg_score_pct
+      - status
+      - student_id
+      - student_name
+      - total_xp
+    TeacherStudentList:
+      type: object
+      properties:
+        avg_performance:
+          type: number
+          format: double
+        avg_attendance:
+          type: number
+          format: double
+        total_students:
+          type: integer
+        need_attention:
+          type: integer
+        students:
+          type: array
+          items:
+            $ref: '#/components/schemas/TeacherStudent'
+      required:
+      - avg_attendance
+      - avg_performance
+      - need_attention
+      - students
+      - total_students
+    TeacherSubmission:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        student:
+          type: integer
+        student_name:
+          type: string
+          readOnly: true
+        content:
+          type: string
+        file:
+          type: string
+          format: uri
+        status:
+          $ref: '#/components/schemas/SubmissionStatusEnum'
+        raw_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        normalized_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        xp_awarded:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+        feedback:
+          type: string
+        is_graded:
+          type: boolean
+        submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - id
+      - student
+      - student_name
+      - submitted_at
+    TodaysTask:
+      type: object
+      properties:
+        title:
+          type: string
+        subject:
+          type: string
+          nullable: true
+        type:
+          type: string
+        time_remaining:
+          type: string
+          nullable: true
+        xp_reward:
+          type: integer
+        status:
+          type: string
+      required:
+      - status
+      - subject
+      - time_remaining
+      - title
+      - type
+      - xp_reward
     TokenRefresh:
       type: object
       properties:
@@ -3329,6 +7716,52 @@ components:
           minLength: 1
       required:
       - refresh
+    TokenResponse:
+      type: object
+      properties:
+        access:
+          type: string
+        refresh:
+          type: string
+        user_id:
+          type: integer
+        role:
+          type: string
+      required:
+      - access
+      - refresh
+      - role
+      - user_id
+    TrendPoint:
+      type: object
+      properties:
+        period:
+          type: string
+        average:
+          type: number
+          format: double
+      required:
+      - average
+      - period
+    UpcomingItem:
+      type: object
+      properties:
+        type:
+          type: string
+        id:
+          type: integer
+        title:
+          type: string
+        date:
+          type: string
+        course:
+          type: string
+      required:
+      - course
+      - date
+      - id
+      - title
+      - type
     UseCodeRequest:
       type: object
       properties:
@@ -3412,6 +7845,100 @@ components:
       - email
       - role
       - username
+    VerifyOTPRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        otp:
+          type: string
+          minLength: 1
+          maxLength: 6
+      required:
+      - email
+      - otp
+    XPAddRequest:
+      type: object
+      description: Serializer for adding XP.
+      properties:
+        xp_amount:
+          type: integer
+          minimum: 1
+        source:
+          $ref: '#/components/schemas/SourceEnum'
+      required:
+      - source
+      - xp_amount
+    XPHistory:
+      type: object
+      description: Serializer for XP transaction history.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        student:
+          type: integer
+          readOnly: true
+        xp_amount:
+          type: integer
+          readOnly: true
+        source:
+          allOf:
+          - $ref: '#/components/schemas/SourceEnum'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - source
+      - student
+      - xp_amount
+    XPTotal:
+      type: object
+      description: Serializer for total XP response.
+      properties:
+        total_xp:
+          type: integer
+        transaction_count:
+          type: integer
+        breakdown:
+          type: object
+          additionalProperties: {}
+      required:
+      - breakdown
+      - total_xp
+      - transaction_count
+    XPTransaction:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        student:
+          type: integer
+          readOnly: true
+        xp_amount:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        source:
+          $ref: '#/components/schemas/SourceEnum'
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - source
+      - student
+      - xp_amount
     _BriefSchool:
       type: object
       properties:
