@@ -373,3 +373,9 @@ def get_notifications(student, page=1, page_size=20):
     queryset = StudentNotification.objects.filter(student=student)
     offset = (page - 1) * page_size
     return list(queryset.order_by("-created_at")[offset : offset + page_size])
+
+
+def get_students_by_school(school_id: int):
+    from students.models import Student
+
+    return Student.objects.filter(school_id=school_id, user__isnull=False).select_related("user", "grade").order_by("-created_at")

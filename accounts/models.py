@@ -33,6 +33,11 @@ class User(AbstractUser):
         related_name="members",
     )
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["email", "school"], name="unique_email_per_school"),
+        ]
+
     def __str__(self) -> str:
         return f"{self.username} ({self.role})"
 

@@ -28,6 +28,16 @@ def _auth_client(client, email, password):
     return resp.data["access"], resp.data["refresh"]
 
 
+def _create_school_admin(email="admin@test.io", password="AdminPass123") -> User:
+    """Create a school_admin user directly (not via register endpoint)."""
+    return User.objects.create_user(
+        username=email.split("@")[0],
+        email=email,
+        password=password,
+        role=User.Role.SCHOOL_ADMIN,
+    )
+
+
 class RegisterTest(TestCase):
     def setUp(self):
         self.client = APIClient()
@@ -37,10 +47,9 @@ class RegisterTest(TestCase):
         self.assertEqual(resp.status_code, 201)
         self.assertEqual(resp.data["role"], "student")
 
-    def test_school_admin_registration(self):
+    def test_school_admin_registration_rejected(self):
         resp = _register(self.client, "admin1", "admin@test.io", "AdminPass123", "school_admin")
-        self.assertEqual(resp.status_code, 201)
-        self.assertEqual(resp.data["role"], "school_admin")
+        self.assertEqual(resp.status_code, 400)
 
     def test_duplicate_email_rejected(self):
         _register(self.client, "u1", "dup@test.io", "Pass12345", "student")
@@ -214,7 +223,7 @@ class ProfileTest(TestCase):
 class SchoolAdminTest(TestCase):
     def setUp(self):
         self.client = APIClient()
-        _register(self.client, "school_admin1", "admin@school.io", "AdminPass123", "school_admin")
+        admin_user = _create_school_admin(email="admin@school.io")
         access, _ = _auth_client(self.client, "admin@school.io", "AdminPass123")
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
 
@@ -249,8 +258,8 @@ class SchoolAdminTest(TestCase):
 
 
 def _create_school_with_admin(client, admin_username, admin_email, school_name):
-    """Register a school admin, create a school, return (access_token, school_data)."""
-    _register(client, admin_username, admin_email, "AdminPass123", "school_admin")
+    """Create a school admin, create a school, return (access_token, school_data)."""
+    _create_school_admin(email=admin_email)
     access, _ = _auth_client(client, admin_email, "AdminPass123")
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
     resp = client.post(f"{BASE}/school/", {"name": school_name})
@@ -283,7 +292,7 @@ class AutoGenerateCodesOnSchoolCreationTest(TestCase):
         self.client = APIClient()
 
     def test_codes_generated_on_school_creation(self):
-        _register(self.client, "admin_ag", "ag@test.io", "AdminPass123", "school_admin")
+        _create_school_admin(email="ag@test.io")
         access, _ = _auth_client(self.client, "ag@test.io", "AdminPass123")
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
         resp = self.client.post(f"{BASE}/school/", {"name": "Auto Gen School"})
@@ -294,7 +303,7 @@ class AutoGenerateCodesOnSchoolCreationTest(TestCase):
         self.assertGreater(code_count, 0)
 
     def test_admin_is_auto_enrolled_as_member(self):
-        _register(self.client, "admin_enroll", "ae@test.io", "AdminPass123", "school_admin")
+        _create_school_admin(email="ae@test.io")
         access, _ = _auth_client(self.client, "ae@test.io", "AdminPass123")
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
         self.client.post(f"{BASE}/school/", {"name": "Admin School"})
@@ -317,7 +326,7 @@ class UseEnrollmentCodeTest(TestCase):
     def setUp(self):
         self.client = APIClient()
         # Create a school with admin
-        _register(self.client, "admin_use", "admin_use@test.io", "AdminPass123", "school_admin")
+        _create_school_admin(email="admin_use@test.io")
         admin_access, _ = _auth_client(self.client, "admin_use@test.io", "AdminPass123")
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {admin_access}")
         resp = self.client.post(f"{BASE}/school/", {"name": "Use Code School"})
@@ -393,7 +402,7 @@ class TeacherOneSchoolRestrictionTest(TestCase):
         self.client = APIClient()
 
         # School A
-        _register(self.client, "admin_a", "admin_a@test.io", "AdminPass123", "school_admin")
+        _create_school_admin(email="admin_a@test.io")
         a_access, _ = _auth_client(self.client, "admin_a@test.io", "AdminPass123")
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {a_access}")
         self.client.post(f"{BASE}/school/", {"name": "School A"})
@@ -401,7 +410,7 @@ class TeacherOneSchoolRestrictionTest(TestCase):
 
         # School B (different admin)
         client_b = APIClient()
-        _register(client_b, "admin_b", "admin_b@test.io", "AdminPass123", "school_admin")
+        _create_school_admin(email="admin_b@test.io")
         b_access, _ = _auth_client(client_b, "admin_b@test.io", "AdminPass123")
         client_b.credentials(HTTP_AUTHORIZATION=f"Bearer {b_access}")
         client_b.post(f"{BASE}/school/", {"name": "School B"})
@@ -453,7 +462,7 @@ class EnrollmentCodeListTest(TestCase):
 
     def setUp(self):
         self.client = APIClient()
-        _register(self.client, "admin_list", "admin_list@test.io", "AdminPass123", "school_admin")
+        _create_school_admin(email="admin_list@test.io")
         access, _ = _auth_client(self.client, "admin_list@test.io", "AdminPass123")
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
         resp = self.client.post(f"{BASE}/school/", {"name": "List School"})
@@ -489,7 +498,7 @@ class EnrollmentCodeListTest(TestCase):
     def test_admin_cannot_list_other_schools_codes(self):
         """Admin of school A should not see school B's codes."""
         other_client = APIClient()
-        _register(other_client, "admin_other", "admin_other@test.io", "AdminPass123", "school_admin")
+        _create_school_admin(email="admin_other@test.io")
         o_access, _ = _auth_client(other_client, "admin_other@test.io", "AdminPass123")
         other_client.credentials(HTTP_AUTHORIZATION=f"Bearer {o_access}")
         other_client.post(f"{BASE}/school/", {"name": "Other School"})
@@ -507,7 +516,7 @@ class GenerateAndRevokeCodesTest(TestCase):
 
     def setUp(self):
         self.client = APIClient()
-        _register(self.client, "admin_gen", "admin_gen@test.io", "AdminPass123", "school_admin")
+        _create_school_admin(email="admin_gen@test.io")
         access, _ = _auth_client(self.client, "admin_gen@test.io", "AdminPass123")
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
         resp = self.client.post(f"{BASE}/school/", {"name": "Gen School"})
@@ -589,7 +598,7 @@ class GenerateAndRevokeCodesTest(TestCase):
 
     def test_admin_cannot_revoke_other_schools_codes(self):
         other_client = APIClient()
-        _register(other_client, "admin_other2", "admin_other2@test.io", "AdminPass123", "school_admin")
+        _create_school_admin(email="admin_other2@test.io")
         o_access, _ = _auth_client(other_client, "admin_other2@test.io", "AdminPass123")
         other_client.credentials(HTTP_AUTHORIZATION=f"Bearer {o_access}")
         other_client.post(f"{BASE}/school/", {"name": "Other School 2"})

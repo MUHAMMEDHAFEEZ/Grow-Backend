@@ -43,19 +43,27 @@ class CeleryFailureTests(TestCase):
                 p.stop()
 
     def _get_school(self):
+        from schools.models import School as EduSchool
+        school = EduSchool.objects.create(
+            name="Test School",
+            school_code="TS",
+            school_type="arabic",
+        )
+        # TeacherProfile.school FK points to accounts.School, so create that too
+        from accounts.models import School as AccountSchool
         from django.contrib.auth import get_user_model
         User = get_user_model()
         admin = User.objects.create_user(
-            username="schooladmin",
-            email="admin@school.com",
-            password="testpass123",
+            username="schadmin",
+            email="schadmin@test.com",
+            password="pass1234",
             role=User.Role.SCHOOL_ADMIN,
         )
-        from accounts.models import School
-        return School.objects.create(
+        AccountSchool.objects.create(
             name="Test School",
             created_by=admin,
         )
+        return school
 
     def _get_teacher(self):
         from django.contrib.auth import get_user_model
@@ -182,11 +190,12 @@ class CeleryFailureTests(TestCase):
     def test_signup_teacher_succeeds_when_delay_raises(self):
         from teachers.services import signup_teacher
 
-        from teachers.models import TeacherCode
+        from schools.models import RegistrationCode
         school = self._get_school()
-        TeacherCode.objects.create(
+        RegistrationCode.objects.create(
             code="TESTCODE123",
             school=school,
+            code_type="teacher",
         )
         result = self._run_task_delay_raises(
             signup_teacher,
@@ -205,11 +214,12 @@ class CeleryFailureTests(TestCase):
     def test_signup_teacher_succeeds_when_delay_succeeds(self):
         from teachers.services import signup_teacher
 
-        from teachers.models import TeacherCode
+        from schools.models import RegistrationCode
         school = self._get_school()
-        TeacherCode.objects.create(
+        RegistrationCode.objects.create(
             code="TESTCODE456",
             school=school,
+            code_type="teacher",
         )
         result = self._assert_delay_wrapped(
             signup_teacher,

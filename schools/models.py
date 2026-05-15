@@ -1,9 +1,14 @@
+from django.conf import settings
 from django.db import models
+
 
 class Grade(models.Model):
     name = models.CharField(max_length=100)
     level = models.IntegerField()
     stage = models.CharField(max_length=20)
+    school = models.ForeignKey(
+        "School", on_delete=models.CASCADE, null=True, blank=True, related_name="grades"
+    )
 
     def __str__(self):
         return self.name
@@ -26,6 +31,35 @@ class School(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.school_code})"
+
+
+class RegistrationCode(models.Model):
+    class CodeType(models.TextChoices):
+        STUDENT = "student", "Student"
+        TEACHER = "teacher", "Teacher"
+
+    code = models.CharField(max_length=20, unique=True)
+    school = models.ForeignKey(
+        "School", on_delete=models.CASCADE, related_name="registration_codes"
+    )
+    grade = models.ForeignKey(
+        "Grade", on_delete=models.CASCADE, null=True, blank=True, related_name="registration_codes"
+    )
+    code_type = models.CharField(max_length=10, choices=CodeType.choices)
+    is_used = models.BooleanField(default=False)
+    used_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["school", "code_type", "is_used"]),
+            models.Index(fields=["code"]),
+        ]
+
+    def __str__(self):
+        return f"RegistrationCode({self.code}, {self.code_type}, used={self.is_used})"
 
 
 class Subject(models.Model):

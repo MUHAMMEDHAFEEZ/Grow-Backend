@@ -62,6 +62,7 @@ def login(request: Request) -> Response:
     serializer = TeacherLoginSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     user, access, refresh = login_teacher(
+        school_id=serializer.validated_data["school_id"],
         email=serializer.validated_data["email"],
         password=serializer.validated_data["password"],
         ip_address=request.META.get("REMOTE_ADDR"),

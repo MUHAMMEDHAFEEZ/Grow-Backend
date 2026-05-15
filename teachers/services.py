@@ -21,6 +21,8 @@ from courses.models import (
 from submissions.models import Submission
 from xp.models import XPTransaction
 
+from schools.services.registration_code_service import validate_and_consume_code
+
 from .models import (
     AuditLog,
     DeviceSession,
@@ -114,33 +116,31 @@ def signup_teacher(*, school_id: int, full_name: str, email: str, password: str,
     if User.objects.filter(email=email).exists():
         raise Conflict("A user with this email already exists.")
 
-    try:
-        code_obj = TeacherCode.objects.select_related("school").get(
-            code=teacher_code, school_id=school_id, is_used=False
-        )
-    except TeacherCode.DoesNotExist:
-        raise ValidationError("Invalid or already used teacher code.")
+    code_obj = validate_and_consume_code(
+        code=teacher_code,
+        school_id=school_id,
+        code_type="teacher",
+        user=None,
+    )
 
     user = User.objects.create_user(
         username=email.split("@")[0],
         email=email,
         password=password,
         role=User.Role.TEACHER,
-        school_id=school_id,
     )
     user.first_name = full_name.split()[0] if full_name.split() else ""
     user.last_name = " ".join(full_name.split()[1:]) if len(full_name.split()) > 1 else ""
     user.save(update_fields=["first_name", "last_name"])
 
+    code_obj.used_by = user
+    code_obj.save(update_fields=["used_by"])
+
     TeacherProfile.objects.create(
         user=user,
         school_id=school_id,
-        teacher_code=code_obj,
     )
     TeacherNotificationPreference.objects.create(teacher=user)
-    code_obj.is_used = True
-    code_obj.used_by = user
-    code_obj.save(update_fields=["is_used", "used_by"])
 
     access_token = _create_access_token(user)
     refresh_token_str = _create_refresh_token(user, ip_address=ip_address)
@@ -172,14 +172,18 @@ def _create_refresh_token(user: User, ip_address: str | None = None, device_info
     return raw_token
 
 
-def login_teacher(*, email: str, password: str, ip_address: str | None = None, device_info: str = "") -> tuple[User, str, str]:
+def login_teacher(*, school_id: int, email: str, password: str, ip_address: str | None = None, device_info: str = "") -> tuple[User, str, str]:
     from django.contrib.auth import authenticate
 
     user = authenticate(username=email, password=password)
     if not user or user.role != User.Role.TEACHER:
         raise ValidationError("Invalid email or password.")
 
-    if hasattr(user, "teacher_profile") and user.teacher_profile.status != TeacherProfile.Status.ACTIVE:
+    profile = getattr(user, "teacher_profile", None)
+    if profile is None or profile.school_id != school_id:
+        raise ValidationError("Invalid email or password.")
+
+    if profile.status != TeacherProfile.Status.ACTIVE:
         raise PermissionDenied("Your account is not active.")
 
     DeviceSession.objects.create(

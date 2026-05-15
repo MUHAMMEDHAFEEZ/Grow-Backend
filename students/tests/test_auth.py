@@ -1,22 +1,23 @@
-from django.test import TestCase, Client
-from django.urls import reverse
+from django.test import TestCase
 from django.contrib.auth import get_user_model
-from students.models import Student, School, Grade
+from rest_framework.test import APIClient
+
+from schools.models import Grade, RegistrationCode, School
+from students.models import Student
 
 User = get_user_model()
 
 
 class StudentAuthTest(TestCase):
     def setUp(self):
-        self.client = Client()
-        self.school = School.objects.create(name="Test School")
-        self.grade = Grade.objects.create(name="Grade 5", level=5)
-        self.student = Student.objects.create(
-            full_name="Test Student",
-            student_id="STU-2024-G5-001",
-            generated_password="STU-2024-G5-001",
+        self.client = APIClient()
+        self.school = School.objects.create(name="Test School", school_code="TS", school_type="arabic")
+        self.grade = Grade.objects.create(name="Grade 5", level=5, school=self.school)
+        self.reg_code = RegistrationCode.objects.create(
+            code="STU-2024-G5-001",
             school=self.school,
             grade=self.grade,
+            code_type="student",
         )
 
     def test_signup_valid_code(self):
@@ -45,8 +46,12 @@ class StudentAuthTest(TestCase):
             username="student1", email="student@test.com",
             password="testpass123", role="student"
         )
-        self.student.user = user
-        self.student.save()
+        Student.objects.create(
+            user=user,
+            full_name="Test Student",
+            school=self.school,
+            grade=self.grade,
+        )
 
         resp = self.client.post("/api/v1/auth/student/login/", {
             "school_id": self.school.id,
@@ -61,8 +66,12 @@ class StudentAuthTest(TestCase):
             username="student2", email="student2@test.com",
             password="testpass123", role="student"
         )
-        self.student.user = user
-        self.student.save()
+        Student.objects.create(
+            user=user,
+            full_name="Test Student",
+            school=self.school,
+            grade=self.grade,
+        )
 
         resp = self.client.post("/api/v1/auth/student/login/", {
             "school_id": self.school.id,

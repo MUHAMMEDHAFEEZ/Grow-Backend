@@ -24,13 +24,21 @@ class RegisterSerializer(serializers.ModelSerializer):
     )
     role = serializers.ChoiceField(
         choices=User.Role.choices,
-        help_text="User role: student | teacher | parent | school_admin.",
+        help_text="User role: student | teacher | parent.",
     )
 
     class Meta:
         model = User
         fields = ["username", "email", "password", "role"]
         extra_kwargs = {"password": {"write_only": True}}
+
+    def validate_role(self, value: str) -> str:
+        if value == User.Role.SCHOOL_ADMIN:
+            raise serializers.ValidationError(
+                "School admin accounts cannot be registered through this endpoint. "
+                "They are pre-seeded and managed separately."
+            )
+        return value
 
     def validate_email(self, value: str) -> str:
         if User.objects.filter(email=value).exists():

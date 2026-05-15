@@ -13,6 +13,7 @@ from django.utils import timezone
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from core.exceptions import RateLimitExceeded, ValidationError
+from schools.services.registration_code_service import validate_and_consume_code
 from students.models import LoginHistory, OTPRecord, RefreshToken as StudentRefreshToken, Student, StudentSession
 
 logger = logging.getLogger(__name__)
@@ -80,20 +81,29 @@ def student_signup(school_id, full_name, email, password, student_code):
     if User.objects.filter(email=email).exists():
         raise ValidationError("A user with this email already exists.")
 
-    try:
-        student = Student.objects.get(student_id=student_code, user__isnull=True)
-    except Student.DoesNotExist:
-        raise ValidationError("Invalid or already claimed student code.")
-
     username = f"student_{email.split('@')[0]}_{secrets.token_hex(4)}"
-    user = User.objects.create_user(
-        username=username,
-        email=email,
-        password=password,
-        role="student",
-    )
-    student.user = user
-    student.save(update_fields=["user"])
+
+    with transaction.atomic():
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=password,
+            role="student",
+        )
+
+        code_obj = validate_and_consume_code(
+            code=student_code,
+            school_id=school_id,
+            code_type="student",
+            user=user,
+        )
+
+        student = Student.objects.create(
+            user=user,
+            school_id=school_id,
+            grade=code_obj.grade,
+            full_name=full_name,
+        )
 
     refresh = RefreshToken.for_user(user)
     StudentSession.objects.create(student=user, is_active=True)
@@ -109,7 +119,7 @@ def student_signup(school_id, full_name, email, password, student_code):
         "student": {
             "id": student.id,
             "full_name": student.full_name,
-            "student_id": student.student_id,
+            "grade_id": code_obj.grade_id,
         },
     }
 
@@ -122,6 +132,10 @@ def student_login(school_id, email, password):
     try:
         user_obj = User.objects.get(email=email, role="student")
     except User.DoesNotExist:
+        raise ValidationError("Invalid credentials.")
+
+    student_profile = getattr(user_obj, "student_profile", None)
+    if student_profile is None or student_profile.school_id != school_id:
         raise ValidationError("Invalid credentials.")
 
     user = authenticate(username=user_obj.username, password=password)
