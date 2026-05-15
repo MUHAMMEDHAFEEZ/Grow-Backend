@@ -119,7 +119,7 @@ class TeacherLessonSerializer(serializers.ModelSerializer):
         model = Lesson
         fields = [
             "id", "title", "content", "order", "status",
-            "video_url", "pdf_file", "resources",
+            "video_url", "video_file", "pdf_file", "resources",
             "xp_reward", "bonus_xp",
             "start_time", "end_time", "created_at",
         ]

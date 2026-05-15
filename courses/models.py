@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.utils import timezone
 
@@ -106,6 +107,13 @@ class Lesson(models.Model):
         max_length=10, choices=Status.choices, default=Status.DRAFT
     )
     video_url = models.URLField(blank=True, default="")
+    video_file = models.FileField(
+        upload_to="lessons/videos/",
+        blank=True,
+        validators=[FileExtensionValidator(allowed_extensions=[
+            "mp4", "webm", "mov", "avi", "mkv", "wmv", "flv", "3gp",
+        ])],
+    )
     pdf_file = models.FileField(upload_to="lesson_pdfs/", blank=True)
     resources = models.FileField(upload_to="lesson_resources/", blank=True)
     xp_reward = models.PositiveIntegerField(default=0)
