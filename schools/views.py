@@ -7,7 +7,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from core.permissions import IsSchoolAdmin
-from schools.models import Grade, School
+from schools.models import School
+from schools.selectors import get_grades_for_school
 from schools.serializers import (
     GradeSerializer,
     SchoolLoginSerializer,
@@ -20,9 +21,12 @@ from students.serializers.school_student_serializers import SchoolStudentListSer
 
 
 class GradeListView(ListAPIView):
-    queryset = Grade.objects.all().order_by("level")
     serializer_class = GradeSerializer
     permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        school_id = self.request.query_params.get("school_id")
+        return get_grades_for_school(school_id=int(school_id) if school_id else None)
 
 
 class SchoolListView(ListAPIView):
