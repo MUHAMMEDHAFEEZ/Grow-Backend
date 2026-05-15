@@ -7,6 +7,7 @@ from rest_framework.response import Response
 
 from core.permissions import IsTeacher
 from teachers.serializers import (
+    LessonReorderSerializer,
     TeacherCourseListSerializer,
     TeacherCourseWriteSerializer,
     TeacherLessonSerializer,
@@ -22,6 +23,7 @@ from teachers.services import (
     create_teacher_lesson,
     delete_teacher_course,
     delete_teacher_lesson,
+    reorder_lessons,
     update_teacher_course,
     update_teacher_lesson,
 )
@@ -161,3 +163,22 @@ def update_lesson(request: Request, lesson_id: int) -> Response:
 def delete_lesson(request: Request, lesson_id: int) -> Response:
     delete_teacher_lesson(teacher=request.user, lesson_id=lesson_id)
     return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@extend_schema(
+    tags=["Teacher Courses"],
+    summary="Reorder lessons",
+    request=LessonReorderSerializer,
+    responses={200: TeacherLessonSerializer(many=True)},
+)
+@api_view(["POST"])
+@permission_classes([IsAuthenticated, IsTeacher])
+def reorder_lessons_view(request: Request, course_id: int) -> Response:
+    serializer = LessonReorderSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    lessons = reorder_lessons(
+        teacher=request.user,
+        course_id=course_id,
+        ordered_ids=serializer.validated_data["ordered_ids"],
+    )
+    return Response(TeacherLessonSerializer(lessons, many=True).data)

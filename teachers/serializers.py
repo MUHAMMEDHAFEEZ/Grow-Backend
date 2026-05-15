@@ -126,6 +126,18 @@ class TeacherLessonSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at"]
 
 
+class LessonReorderSerializer(serializers.Serializer):
+    ordered_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        allow_empty=False,
+    )
+
+    def validate_ordered_ids(self, value):
+        if len(value) != len(set(value)):
+            raise serializers.ValidationError("ordered_ids must not contain duplicates.")
+        return value
+
+
 class TeacherAssignmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Assignment

@@ -3871,6 +3871,42 @@ paths:
               schema:
                 $ref: '#/components/schemas/TeacherLesson'
           description: ''
+  /api/v1/teacher/courses/{course_id}/lessons/reorder/:
+    post:
+      operationId: teacher_courses_lessons_reorder_create
+      summary: Reorder lessons
+      parameters:
+      - in: path
+        name: course_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Teacher Courses
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LessonReorderRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LessonReorderRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LessonReorderRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TeacherLesson'
+          description: ''
   /api/v1/teacher/courses/{course_id}/update/:
     put:
       operationId: teacher_courses_update_update
@@ -5423,6 +5459,16 @@ components:
       - lesson_id
       - lesson_title
       - total_enrolled
+    LessonReorderRequest:
+      type: object
+      properties:
+        ordered_ids:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+      required:
+      - ordered_ids
     LessonRequest:
       type: object
       properties:
