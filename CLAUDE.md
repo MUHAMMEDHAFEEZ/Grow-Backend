@@ -1,6 +1,6 @@
 ﻿# grow Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-05-12
+Auto-generated from all feature plans. Last updated: 2026-05-15
 
 ## Active Technologies
 
@@ -40,4 +40,5 @@ Python 3.11 / Django 6.0: Follow standard conventions
 - 011-parent-role-completion: Full parent role completion — 15 endpoints (auth signup/login/OAuth, add-student with access code, students list, dashboard, analytics, attendance, report+PDF, notifications, settings); LoginHistory model; Notification extensions (parent/student/reference_id); parent_access_code on Student; notifications_enabled on User; 5 service modules in parent/services/; rate limiting on add-student; PDF caching; OAuth integration
 - 012-fix-swagger-schema: drf-spectacular/OpenAPI schema cleanup — eliminated "unable to guess serializer" warnings from 20+ views, fixed path parameter type derivation, resolved operationId collisions; added serializer_class + @extend_schema annotations across accounts, ai, courses, dashboard, parent, study_sessions, xp apps
 - 013-student-role-backend: Complete student role backend — 19+ endpoints across auth (signup/login/OTP/reset/logout), dashboard (XP/streak/leaderboard/tasks), courses (list/detail/complete), quizzes (start/submit), assignments (view/submit with file validation), tasks (past due/today/summary), notifications (list/mark read/dedup), settings (profile/aggregates); 8 new models (LoginHistory, StudentSession, StudentCourseProgress, LessonCompletion, DailyMasterLog, OTPRecord, RefreshToken, StudentNotification); XPTransaction extended with source_type/source_id + unique constraint; file validation service (20MB, MIME + extension check); rate limiting on all auth endpoints; single-session enforcement
+- 015-async-notification-resilience: transaction.on_commit() isolation for all 6 Celery .delay() calls in teachers/services.py; ensures DB writes commit before async notifications; Redis/Celery failures never crash API
 <!-- MANUAL ADDITIONS END -->

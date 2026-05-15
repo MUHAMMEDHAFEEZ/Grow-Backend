@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import secrets
 from datetime import timedelta
 
@@ -32,6 +33,57 @@ from .models import (
 )
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
+
+
+def _safe_delay_welcome_email(email: str, full_name: str) -> None:
+    from teachers.tasks import send_welcome_email
+    try:
+        send_welcome_email.delay(email, full_name)
+    except Exception as e:
+        logger.warning(
+            "Failed to send welcome email to %s: %s", email, e, exc_info=True
+        )
+
+
+def _safe_delay_otp_email(email: str, otp: str) -> None:
+    from teachers.tasks import send_otp_email
+    try:
+        send_otp_email.delay(email, otp)
+    except Exception as e:
+        logger.warning(
+            "Failed to send OTP email to %s: %s", email, e, exc_info=True
+        )
+
+
+def _safe_delay_notify_students(lesson_id: int) -> None:
+    from teachers.tasks import notify_students_new_lecture
+    try:
+        notify_students_new_lecture.delay(lesson_id)
+    except Exception as e:
+        logger.warning(
+            "Failed to notify students for lesson %s: %s", lesson_id, e, exc_info=True
+        )
+
+
+def _safe_delay_schedule_reminder(assignment_id: int) -> None:
+    from teachers.tasks import schedule_assignment_reminder
+    try:
+        schedule_assignment_reminder.delay(assignment_id)
+    except Exception as e:
+        logger.warning(
+            "Failed to schedule reminder for assignment %s: %s", assignment_id, e, exc_info=True
+        )
+
+
+def _safe_delay_feedback_notification(submission_id: int) -> None:
+    from teachers.tasks import send_feedback_notification
+    try:
+        send_feedback_notification.delay(submission_id)
+    except Exception as e:
+        logger.warning(
+            "Failed to send feedback notification for submission %s: %s", submission_id, e, exc_info=True
+        )
 
 
 def _hash_token(token: str) -> str:
@@ -95,8 +147,7 @@ def signup_teacher(*, school_id: int, full_name: str, email: str, password: str,
 
     _log_audit("teacher", user.id, "signup", "User", user.id, ip_address=ip_address)
 
-    from teachers.tasks import send_welcome_email
-    send_welcome_email.delay(email, full_name)
+    transaction.on_commit(lambda: _safe_delay_welcome_email(email, full_name))
 
     return user, access_token, refresh_token_str
 
@@ -181,18 +232,18 @@ def send_otp(*, email: str) -> str:
     if not User.objects.filter(email=email, role=User.Role.TEACHER).exists():
         raise NotFound("No teacher found with this email.")
 
-    OTPRecord.objects.filter(email=email, is_used=False).update(is_used=True)
+    with transaction.atomic():
+        OTPRecord.objects.filter(email=email, is_used=False).update(is_used=True)
 
-    otp = _generate_otp()
-    otp_hash = _hash_token(otp)
-    OTPRecord.objects.create(
-        email=email,
-        otp_hash=otp_hash,
-        expires_at=timezone.now() + timedelta(minutes=10),
-    )
+        otp = _generate_otp()
+        otp_hash = _hash_token(otp)
+        OTPRecord.objects.create(
+            email=email,
+            otp_hash=otp_hash,
+            expires_at=timezone.now() + timedelta(minutes=10),
+        )
 
-    from teachers.tasks import send_otp_email
-    send_otp_email.delay(email, otp)
+        transaction.on_commit(lambda: _safe_delay_otp_email(email, otp))
 
     return "OTP sent to your email."
 
@@ -262,35 +313,71 @@ def delete_teacher_course(*, teacher: User, course_id: int):
 
 
 def create_teacher_lesson(*, teacher: User, course_id: int, **fields) -> Lesson:
+    with transaction.atomic():
+        try:
+            course = Course.objects.get(pk=course_id, teacher=teacher)
+        except Course.DoesNotExist:
+            raise NotFound("Course not found or you do not own it.")
+        lesson = Lesson.objects.create(course=course, **fields)
+        _log_audit("teacher", teacher.id, "create", "Lesson", lesson.id)
+
+        if lesson.status == Lesson.Status.PUBLISHED:
+            transaction.on_commit(lambda: _safe_delay_notify_students(lesson.id))
+
+        return lesson
+
+
+def update_teacher_lesson(*, teacher: User, lesson_id: int, **fields) -> Lesson:
+    with transaction.atomic():
+        try:
+            lesson = Lesson.objects.select_related("course").get(pk=lesson_id, course__teacher=teacher)
+        except Lesson.DoesNotExist:
+            raise NotFound("Lesson not found or you do not own it.")
+        for key, value in fields.items():
+            setattr(lesson, key, value)
+        lesson.save()
+        _log_audit("teacher", teacher.id, "update", "Lesson", lesson.id)
+
+        if lesson.status == Lesson.Status.PUBLISHED:
+            transaction.on_commit(lambda: _safe_delay_notify_students(lesson.id))
+
+        return lesson
+
+
+@transaction.atomic
+def reorder_lessons(*, teacher: User, course_id: int, ordered_ids: list[int]) -> list[Lesson]:
     try:
         course = Course.objects.get(pk=course_id, teacher=teacher)
     except Course.DoesNotExist:
         raise NotFound("Course not found or you do not own it.")
-    lesson = Lesson.objects.create(course=course, **fields)
-    _log_audit("teacher", teacher.id, "create", "Lesson", lesson.id)
 
-    if lesson.status == Lesson.Status.PUBLISHED:
-        from teachers.tasks import notify_students_new_lecture
-        notify_students_new_lecture.delay(lesson.id)
+    existing = set(
+        Lesson.objects.filter(course=course).values_list("pk", flat=True)
+    )
+    provided = set(ordered_ids)
+    if not provided.issubset(existing):
+        missing = provided - existing
+        raise ValidationError(
+            f"Lesson IDs {sorted(missing)} do not belong to this course."
+        )
+    if provided != existing:
+        raise ValidationError(
+            "ordered_ids must include all lessons in the course."
+        )
 
-    return lesson
+    from django.db.models import Case, Value, When, IntegerField
 
+    cases = [
+        When(pk=pk, then=Value(index))
+        for index, pk in enumerate(ordered_ids)
+    ]
+    Lesson.objects.filter(course=course).update(
+        order=Case(*cases, output_field=IntegerField())
+    )
 
-def update_teacher_lesson(*, teacher: User, lesson_id: int, **fields) -> Lesson:
-    try:
-        lesson = Lesson.objects.select_related("course").get(pk=lesson_id, course__teacher=teacher)
-    except Lesson.DoesNotExist:
-        raise NotFound("Lesson not found or you do not own it.")
-    for key, value in fields.items():
-        setattr(lesson, key, value)
-    lesson.save()
-    _log_audit("teacher", teacher.id, "update", "Lesson", lesson.id)
+    _log_audit("teacher", teacher.id, "reorder", "Lesson", course_id)
 
-    if lesson.status == Lesson.Status.PUBLISHED:
-        from teachers.tasks import notify_students_new_lecture
-        notify_students_new_lecture.delay(lesson.id)
-
-    return lesson
+    return list(Lesson.objects.filter(pk__in=ordered_ids).order_by("order"))
 
 
 def delete_teacher_lesson(*, teacher: User, lesson_id: int):
@@ -307,21 +394,21 @@ def delete_teacher_lesson(*, teacher: User, lesson_id: int):
 
 def create_teacher_assignment(*, teacher: User, course_id: int, **fields) -> Assignment:
     from assignments.models import Assignment
-    try:
-        course = Course.objects.get(pk=course_id, teacher=teacher)
-    except Course.DoesNotExist:
-        raise NotFound("Course not found or you do not own it.")
-    if fields.get("due_date", timezone.now()) < timezone.now():
-        raise ValidationError("Due date must be in the future.")
-    assignment = Assignment.objects.create(
-        course=course,
-        created_by=teacher,
-        **fields,
-    )
-    _log_audit("teacher", teacher.id, "create", "Assignment", assignment.id)
+    with transaction.atomic():
+        try:
+            course = Course.objects.get(pk=course_id, teacher=teacher)
+        except Course.DoesNotExist:
+            raise NotFound("Course not found or you do not own it.")
+        if fields.get("due_date", timezone.now()) < timezone.now():
+            raise ValidationError("Due date must be in the future.")
+        assignment = Assignment.objects.create(
+            course=course,
+            created_by=teacher,
+            **fields,
+        )
+        _log_audit("teacher", teacher.id, "create", "Assignment", assignment.id)
 
-    from teachers.tasks import schedule_assignment_reminder
-    schedule_assignment_reminder.delay(assignment.id)
+        transaction.on_commit(lambda: _safe_delay_schedule_reminder(assignment.id))
 
     return assignment
 
@@ -396,8 +483,7 @@ def grade_submission(*, teacher: User, submission_id: int, raw_score: float, fee
         ip_address=ip_address,
     )
 
-    from teachers.tasks import send_feedback_notification
-    send_feedback_notification.delay(submission.id)
+    transaction.on_commit(lambda: _safe_delay_feedback_notification(submission.id))
 
     return submission
 

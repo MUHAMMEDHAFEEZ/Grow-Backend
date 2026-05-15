@@ -2880,6 +2880,41 @@ paths:
                 items:
                   $ref: '#/components/schemas/QuizAttempt'
           description: ''
+  /api/v1/schools/grades/:
+    get:
+      operationId: schools_grades_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - schools
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedSchoolGradeList'
+          description: ''
   /api/v1/sessions/:
     get:
       operationId: session_list
@@ -3835,6 +3870,42 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TeacherLesson'
+          description: ''
+  /api/v1/teacher/courses/{course_id}/lessons/reorder/:
+    post:
+      operationId: teacher_courses_lessons_reorder_create
+      summary: Reorder lessons
+      parameters:
+      - in: path
+        name: course_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Teacher Courses
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LessonReorderRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LessonReorderRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LessonReorderRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TeacherLesson'
           description: ''
   /api/v1/teacher/courses/{course_id}/update/:
     put:
@@ -5388,6 +5459,16 @@ components:
       - lesson_id
       - lesson_title
       - total_enrolled
+    LessonReorderRequest:
+      type: object
+      properties:
+        ordered_ids:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+      required:
+      - ordered_ids
     LessonRequest:
       type: object
       properties:
@@ -5688,6 +5769,29 @@ components:
       required:
       - access_token
       - provider
+    PaginatedSchoolGradeList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/SchoolGrade'
     ParentGPA:
       type: object
       properties:
@@ -6387,6 +6491,28 @@ components:
           maxLength: 255
       required:
       - name
+    SchoolGrade:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        level:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        stage:
+          type: string
+          maxLength: 20
+      required:
+      - id
+      - level
+      - name
+      - stage
     SendOTPRequest:
       type: object
       properties:

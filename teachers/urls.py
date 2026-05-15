@@ -31,6 +31,7 @@ urlpatterns = [
     # Lessons
     path("courses/<int:course_id>/lessons/", course_views.list_lessons, name="teacher-lesson-list"),
     path("courses/<int:course_id>/lessons/create/", course_views.create_lesson, name="teacher-lesson-create"),
+    path("courses/<int:course_id>/lessons/reorder/", course_views.reorder_lessons_view, name="teacher-lesson-reorder"),
     path("lessons/<int:lesson_id>/", course_views.get_lesson_view, name="teacher-lesson-detail"),
     path("lessons/<int:lesson_id>/update/", course_views.update_lesson, name="teacher-lesson-update"),
     path("lessons/<int:lesson_id>/delete/", course_views.delete_lesson, name="teacher-lesson-delete"),
