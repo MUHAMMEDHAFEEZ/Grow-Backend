@@ -17,6 +17,7 @@ class TeacherSignupSerializer(serializers.Serializer):
 
 
 class TeacherLoginSerializer(serializers.Serializer):
+    school_id = serializers.IntegerField()
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
 
