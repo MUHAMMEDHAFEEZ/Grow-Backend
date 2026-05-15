@@ -9,10 +9,12 @@ def get_todays_tasks(student):
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     today_end = today_start + timezone.timedelta(days=1)
 
+    grade = getattr(getattr(student, 'student_profile', None), 'grade', None)
+
     tasks = []
 
     assignments = Assignment.objects.filter(
-        course__grade=student.grade,
+        course__grade=grade,
         due_date__gte=today_start,
         due_date__lt=today_end,
     ).select_related("course")

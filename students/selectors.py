@@ -85,10 +85,12 @@ def get_student_tasks_today(student):
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     today_end = today_start + timezone.timedelta(days=1)
 
+    grade = getattr(getattr(student, 'student_profile', None), 'grade', None)
+
     assignments = Assignment.objects.filter(
         due_date__gte=today_start,
         due_date__lt=today_end,
-        course__grade=student.grade
+        course__grade=grade
     ).select_related('course')
 
     tasks = []
@@ -302,9 +304,11 @@ def get_assignment_detail(assignment_id, student):
 def get_past_due_items(student):
     from assignments.models import Assignment
 
+    grade = getattr(getattr(student, 'student_profile', None), 'grade', None)
+
     now = timezone.now()
     assignments = Assignment.objects.filter(
-        course__grade=student.grade,
+        course__grade=grade,
         due_date__lt=now,
     ).exclude(
         submissions__student=student,
@@ -325,12 +329,14 @@ def get_past_due_items(student):
 def get_todays_missions(student):
     from assignments.models import Assignment
 
+    grade = getattr(getattr(student, 'student_profile', None), 'grade', None)
+
     now = timezone.now()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     today_end = today_start + timezone.timedelta(days=1)
 
     assignments = Assignment.objects.filter(
-        course__grade=student.grade,
+        course__grade=grade,
         due_date__gte=today_start,
         due_date__lt=today_end,
     ).select_related("course")
@@ -351,6 +357,8 @@ def get_todays_missions(student):
 def get_student_settings(student):
     from courses.models import StudentCourse
 
+    profile = getattr(student, 'student_profile', None)
+
     total_xp = XPTransaction.objects.filter(student=student).aggregate(
         total=Coalesce(Sum("xp_amount"), 0)
     )["total"] or 0
@@ -358,10 +366,10 @@ def get_student_settings(student):
     courses_count = StudentCourse.objects.filter(student=student).count()
 
     return {
-        "full_name": student.full_name,
-        "student_id": student.student_id,
-        "school": student.school.name if student.school else None,
-        "grade": student.grade.name if student.grade else None,
+        "full_name": profile.full_name if profile else None,
+        "student_id": profile.student_id if profile else None,
+        "school": profile.school.name if profile and profile.school else None,
+        "grade": profile.grade.name if profile and profile.grade else None,
         "total_xp": total_xp,
         "courses_count": courses_count,
     }

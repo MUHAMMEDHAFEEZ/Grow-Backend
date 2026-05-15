@@ -5,13 +5,15 @@ from xp.models import XPTransaction
 
 
 def get_leaderboard(student):
+    grade = getattr(getattr(student, 'student_profile', None), 'grade', None)
+
     class_students = XPTransaction.objects.filter(
-        student__student_profile__grade=student.student_profile.grade
+        student__student_profile__grade=grade
     ).values("student", "student__username")
 
     leaderboard_data = (
         XPTransaction.objects.filter(
-            student__student_profile__grade=student.student_profile.grade
+            student__student_profile__grade=grade
         )
         .values("student", "student__username")
         .annotate(
