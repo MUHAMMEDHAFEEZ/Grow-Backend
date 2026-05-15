@@ -1,3 +1,5 @@
+import re
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from rest_framework.test import APIClient
@@ -148,3 +150,73 @@ class SchoolStudentListTest(TestCase):
         student = resp.data["results"][0]
         self.assertEqual(student["grade_name"], "Grade 5")
         self.assertEqual(student["grade_level"], 5)
+
+
+class GradeListTest(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.url = "/api/v1/schools/grades/"
+
+        self.school_a = School.objects.create(name="SCHOOLA", school_code="SA", school_type="arabic")
+        self.school_b = School.objects.create(name="SCHOOLB", school_code="SB", school_type="arabic")
+
+        for level in range(1, 13):
+            stage = "primary" if level <= 6 else "secondary"
+            Grade.objects.create(name=f"Grade {level}", level=level, stage=stage, school=self.school_a)
+            Grade.objects.create(name=f"Grade {level}", level=level, stage=stage, school=self.school_b)
+
+    def _results(self, resp):
+        return resp.data.get("results", resp.data)
+
+    def test_unauthenticated_returns_global_grades(self):
+        self.client.credentials()
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 200)
+        results = self._results(resp)
+        for g in results:
+            self.assertIn("id", g)
+            self.assertIn("name", g)
+            self.assertIn("level", g)
+
+    def test_school_id_query_param_returns_scoped_grades(self):
+        resp = self.client.get(self.url, {"school_id": self.school_a.id})
+        self.assertEqual(resp.status_code, 200)
+        results = self._results(resp)
+        self.assertEqual(len(results), 12)
+
+    def test_different_schools_return_different_grades(self):
+        resp_a = self.client.get(self.url, {"school_id": self.school_a.id})
+        resp_b = self.client.get(self.url, {"school_id": self.school_b.id})
+        ids_a = [g["id"] for g in self._results(resp_a)]
+        ids_b = [g["id"] for g in self._results(resp_b)]
+        self.assertNotEqual(ids_a, ids_b)
+        self.assertEqual(len(ids_a), 12)
+        self.assertEqual(len(ids_b), 12)
+
+    def test_sorted_by_level_ascending(self):
+        resp = self.client.get(self.url, {"school_id": self.school_a.id})
+        results = self._results(resp)
+        levels = [g["level"] for g in results]
+        self.assertEqual(levels, list(range(1, 13)))
+
+    def test_no_duplicate_levels(self):
+        resp = self.client.get(self.url, {"school_id": self.school_a.id})
+        results = self._results(resp)
+        levels = [g["level"] for g in results]
+        self.assertEqual(len(levels), len(set(levels)))
+
+    def test_name_format_grade_n(self):
+        resp = self.client.get(self.url)
+        results = self._results(resp)
+        for g in results:
+            self.assertTrue(re.match(r"^Grade \d+$", g["name"]), f"Unexpected name: {g['name']}")
+
+    def test_response_includes_expected_fields(self):
+        resp = self.client.get(self.url)
+        results = self._results(resp)
+        if results:
+            g = results[0]
+            self.assertIn("id", g)
+            self.assertIn("name", g)
+            self.assertIn("level", g)
+            self.assertIn("stage", g)

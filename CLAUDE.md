@@ -1,6 +1,6 @@
 ﻿# grow Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-05-15
+Auto-generated from all feature plans. Last updated: 2026-05-16
 
 ## Active Technologies
 
@@ -15,6 +15,7 @@ Auto-generated from all feature plans. Last updated: 2026-05-15
 - parent role completion: LoginHistory model (dynamic streak), Notification extensions (parent/student FK, reference_id, quiz_deadline/grade_updated events), user.notifications_enabled field, student.parent_access_code field; 5 parent services (gpa, xp, attendance, schedule, report); OAuth signup + login; 15 total parent endpoints (011-parent-role-completion)
 - student role backend: 19 endpoints (auth signup/login/OTP/reset/logout, dashboard, courses, quizzes, assignments, tasks, notifications, settings, AI chat); 8 new models (LoginHistory, StudentSession, StudentCourseProgress, LessonCompletion, DailyMasterLog, OTPRecord, RefreshToken, StudentNotification); XPTransaction extended with source_type/source_id + unique constraint; file validation service; rate limiting on auth endpoints; single-session enforcement; students/ as subpackage (services/, serializers/, views/, urls/, tests/) (013-student-role-backend)
 - multi-school auth: RegistrationCode model, school field on User (unique email per school), 5 new auth endpoints, seed management command, rate limiting, school-level data isolation (017-multi-school-auth)
+- grades API fix: school-scoped GradeListView, deduplication via aggregation, data migration to rename global grades to English "Grade N"; selector layer introduced in schools app (019-fix-grades-api)
 
 ## Project Structure
 
@@ -43,4 +44,5 @@ Python 3.11 / Django 6.0: Follow standard conventions
 - 013-student-role-backend: Complete student role backend — 19+ endpoints across auth (signup/login/OTP/reset/logout), dashboard (XP/streak/leaderboard/tasks), courses (list/detail/complete), quizzes (start/submit), assignments (view/submit with file validation), tasks (past due/today/summary), notifications (list/mark read/dedup), settings (profile/aggregates); 8 new models (LoginHistory, StudentSession, StudentCourseProgress, LessonCompletion, DailyMasterLog, OTPRecord, RefreshToken, StudentNotification); XPTransaction extended with source_type/source_id + unique constraint; file validation service (20MB, MIME + extension check); rate limiting on all auth endpoints; single-session enforcement
 - 015-async-notification-resilience: transaction.on_commit() isolation for all 6 Celery .delay() calls in teachers/services.py; ensures DB writes commit before async notifications; Redis/Celery failures never crash API
 - 017-multi-school-auth: Complete multi-school auth system — RegistrationCode model, school field on User (unique email per school), 5 new auth endpoints (student/teacher signup + login, school login), seed management command for schools/grades/codes, rate limiting, school-level data isolation
+- 019-fix-grades-api: Fixed /api/v1/schools/grades/ endpoint — school-scoped queries, deduplication via values+annotate aggregation, data migration 0005 to rename global grades from Arabic to "Grade N", new schools/selectors.py with get_grades_for_school()
 <!-- MANUAL ADDITIONS END -->

@@ -2880,6 +2880,41 @@ paths:
                 items:
                   $ref: '#/components/schemas/QuizAttempt'
           description: ''
+  /api/v1/schools/:
+    get:
+      operationId: schools_list_2
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - schools
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedSchoolList'
+          description: ''
   /api/v1/schools/grades/:
     get:
       operationId: schools_grades_list
@@ -2914,6 +2949,60 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaginatedSchoolGradeList'
+          description: ''
+  /api/v1/schools/login/:
+    post:
+      operationId: schools_login_create
+      description: Dedicated login endpoint for school administrators. School accounts
+        are pre-seeded and do NOT signup through this endpoint. This auth flow is
+        completely separate from student/teacher/parent authentication.
+      summary: School admin login
+      tags:
+      - School Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SchoolLoginRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SchoolLoginRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SchoolLoginRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SchoolLoginResponse'
+          description: ''
+        '400':
+          description: Invalid credentials.
+  /api/v1/schools/students/:
+    get:
+      operationId: schools_students_list
+      description: Returns a paginated list of all students registered in the authenticated
+        school admin's school.
+      summary: List students in admin's school
+      tags:
+      - School Admin
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SchoolStudentList'
           description: ''
   /api/v1/sessions/:
     get:
@@ -5792,6 +5881,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/SchoolGrade'
+    PaginatedSchoolList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/School'
     ParentGPA:
       type: object
       properties:
@@ -5973,6 +6085,10 @@ components:
           type: string
           format: uri
           maxLength: 200
+        video_file:
+          type: string
+          format: binary
+          pattern: (?:mp4|webm|mov|avi|mkv|wmv|flv|3gp)$
         pdf_file:
           type: string
           format: binary
@@ -6358,7 +6474,7 @@ components:
           allOf:
           - $ref: '#/components/schemas/RegisterRoleEnum'
           description: |-
-            User role: student | teacher | parent | school_admin.
+            User role: student | teacher | parent.
 
             * `student` - Student
             * `parent` - Parent
@@ -6513,6 +6629,64 @@ components:
       - level
       - name
       - stage
+    SchoolLoginRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - password
+      - username
+    SchoolLoginResponse:
+      type: object
+      properties:
+        access:
+          type: string
+        refresh:
+          type: string
+        user_id:
+          type: integer
+        role:
+          type: string
+        username:
+          type: string
+      required:
+      - access
+      - refresh
+      - role
+      - user_id
+      - username
+    SchoolStudentList:
+      type: object
+      properties:
+        id:
+          type: integer
+        full_name:
+          type: string
+        email:
+          type: string
+          readOnly: true
+        grade_name:
+          type: string
+          readOnly: true
+        grade_level:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - created_at
+      - email
+      - full_name
+      - grade_level
+      - grade_name
+      - id
     SendOTPRequest:
       type: object
       properties:
@@ -7445,6 +7619,10 @@ components:
           type: string
           format: uri
           maxLength: 200
+        video_file:
+          type: string
+          format: uri
+          pattern: (?:mp4|webm|mov|avi|mkv|wmv|flv|3gp)$
         pdf_file:
           type: string
           format: uri
@@ -7501,6 +7679,10 @@ components:
           type: string
           format: uri
           maxLength: 200
+        video_file:
+          type: string
+          format: binary
+          pattern: (?:mp4|webm|mov|avi|mkv|wmv|flv|3gp)$
         pdf_file:
           type: string
           format: binary
@@ -7541,6 +7723,8 @@ components:
     TeacherLoginRequest:
       type: object
       properties:
+        school_id:
+          type: integer
         email:
           type: string
           format: email
@@ -7552,6 +7736,7 @@ components:
       required:
       - email
       - password
+      - school_id
     TeacherNotification:
       type: object
       properties:
