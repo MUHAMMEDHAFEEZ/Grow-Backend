@@ -16,6 +16,7 @@ Auto-generated from all feature plans. Last updated: 2026-05-16
 - student role backend: 19 endpoints (auth signup/login/OTP/reset/logout, dashboard, courses, quizzes, assignments, tasks, notifications, settings, AI chat); 8 new models (LoginHistory, StudentSession, StudentCourseProgress, LessonCompletion, DailyMasterLog, OTPRecord, RefreshToken, StudentNotification); XPTransaction extended with source_type/source_id + unique constraint; file validation service; rate limiting on auth endpoints; single-session enforcement; students/ as subpackage (services/, serializers/, views/, urls/, tests/) (013-student-role-backend)
 - multi-school auth: RegistrationCode model, school field on User (unique email per school), 5 new auth endpoints, seed management command, rate limiting, school-level data isolation (017-multi-school-auth)
 - grades API fix: school-scoped GradeListView, deduplication via aggregation, data migration to rename global grades to English "Grade N"; selector layer introduced in schools app (019-fix-grades-api)
+- student code consistency: signup service passes student_code as student_id; school dashboard serializer exposes student_id field (020-student-code-consistency)
 
 ## Project Structure
 
@@ -45,4 +46,5 @@ Python 3.11 / Django 6.0: Follow standard conventions
 - 015-async-notification-resilience: transaction.on_commit() isolation for all 6 Celery .delay() calls in teachers/services.py; ensures DB writes commit before async notifications; Redis/Celery failures never crash API
 - 017-multi-school-auth: Complete multi-school auth system — RegistrationCode model, school field on User (unique email per school), 5 new auth endpoints (student/teacher signup + login, school login), seed management command for schools/grades/codes, rate limiting, school-level data isolation
 - 019-fix-grades-api: Fixed /api/v1/schools/grades/ endpoint — school-scoped queries, deduplication via values+annotate aggregation, data migration 0005 to rename global grades from Arabic to "Grade N", new schools/selectors.py with get_grades_for_school()
+- 020-student-code-consistency: Fix student code consistency — signup service now passes student_code as student_id to Student.objects.create() instead of letting save() auto-generate; school dashboard serializer (SchoolStudentListSerializer) now exposes student_id field; no schema changes
 <!-- MANUAL ADDITIONS END -->

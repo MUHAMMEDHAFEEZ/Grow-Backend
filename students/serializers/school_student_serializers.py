@@ -5,6 +5,7 @@ class SchoolStudentListSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     full_name = serializers.CharField()
     email = serializers.SerializerMethodField()
+    student_id = serializers.CharField()
     grade_name = serializers.SerializerMethodField()
     grade_level = serializers.SerializerMethodField()
     created_at = serializers.DateTimeField()

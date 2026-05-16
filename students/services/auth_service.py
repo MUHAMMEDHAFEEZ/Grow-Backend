@@ -103,6 +103,7 @@ def student_signup(school_id, full_name, email, password, student_code):
             school_id=school_id,
             grade=code_obj.grade,
             full_name=full_name,
+            student_id=student_code,
         )
 
     refresh = RefreshToken.for_user(user)
