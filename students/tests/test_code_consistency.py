@@ -169,3 +169,47 @@ class TestStudentCodeConsistency(TestCase):
         self.assertEqual(resp2.status_code, 201)
         student2 = Student.objects.get(user__email=email2)
         self.assertEqual(student2.student_id, "SCHOOL2-CODE-001")
+
+    def test_settings_all_fields_populated(self):
+        """Settings endpoint must return ALL fields populated (no nulls) after signup."""
+        email = _unique_email()
+        self._signup(
+            school_id=self.school.id, full_name="Test Student",
+            email=email, password="testpass123",
+            student_code="STU-2024-G5-001",
+        )
+        user = User.objects.get(email=email)
+        refresh = RefreshToken.for_user(user)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {refresh.access_token}")
+
+        resp = self.client.get("/api/v1/student/settings/")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.data
+
+        self.assertIsNotNone(data.get("full_name"))
+        self.assertIsNotNone(data.get("email"))
+        self.assertIsNotNone(data.get("school"))
+        self.assertIsNotNone(data.get("student_id"))
+        self.assertIsNotNone(data.get("grade"))
+        self.assertIsInstance(data.get("total_xp"), int)
+        self.assertIsInstance(data.get("courses_count"), int)
+
+        self.assertEqual(data["full_name"], "Test Student")
+        self.assertEqual(data["email"], email)
+        self.assertEqual(data["school"], "TESTSCHOOL")
+        self.assertEqual(data["student_id"], "STU-2024-G5-001")
+        self.assertEqual(data["grade"], "Grade 5")
+
+    def test_student_profile_user_link(self):
+        """Verify user.student_profile returns the correct Student."""
+        email = _unique_email()
+        self._signup(
+            school_id=self.school.id, full_name="Test Student",
+            email=email, password="testpass123",
+            student_code="STU-2024-G5-001",
+        )
+        user = User.objects.get(email=email)
+        profile = getattr(user, 'student_profile', None)
+        self.assertIsNotNone(profile, "user.student_profile must exist after signup")
+        self.assertEqual(profile.full_name, "Test Student")
+        self.assertEqual(profile.student_id, "STU-2024-G5-001")

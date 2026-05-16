@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
+from accounts.models import School as AccSchool, SchoolMembership
 from schools.models import Grade, RegistrationCode, School as EduSchool
 
 User = get_user_model()
@@ -59,7 +60,7 @@ class Command(BaseCommand):
             self._seed_grades(edu_school)
             self._seed_student_codes(edu_school, all_codes)
             self._seed_teacher_codes(edu_school, all_codes)
-            self._seed_admin_account(school_data)
+            self._seed_admin_account(school_data, edu_school)
 
     def _seed_grades(self, edu_school):
         for level in range(1, 13):
@@ -108,7 +109,7 @@ class Command(BaseCommand):
         if needed:
             self.stdout.write(f"    Teacher codes created: {needed}")
 
-    def _seed_admin_account(self, school_data):
+    def _seed_admin_account(self, school_data, edu_school):
         username = school_data["name"].lower().replace(" ", "_") + "_admin"
         user, created = User.objects.get_or_create(
             email=school_data["admin_email"],
@@ -123,3 +124,20 @@ class Command(BaseCommand):
             self.stdout.write(f"    Admin account created: {school_data['admin_email']}")
         else:
             self.stdout.write(f"    Admin account exists: {school_data['admin_email']}")
+
+        edu_school.admin = user
+        edu_school.save(update_fields=["admin"])
+
+        acc_school, _ = AccSchool.objects.get_or_create(
+            name=school_data["name"],
+            defaults={"slug": school_data["name"].lower(), "created_by": user},
+        )
+        if not acc_school.schools_school:
+            acc_school.schools_school = edu_school
+            acc_school.save(update_fields=["schools_school"])
+
+        SchoolMembership.objects.get_or_create(
+            user=user,
+            school=acc_school,
+            defaults={"role": SchoolMembership.Role.ADMIN},
+        )

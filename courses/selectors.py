@@ -33,10 +33,11 @@ def get_courses_for_teacher(teacher: User) -> QuerySet[Course]:
 
 def get_enrolled_courses(student: User) -> QuerySet[Course]:
     profile = getattr(student, 'student_profile', None)
-    if profile is None or profile.grade is None:
+    if profile is None or profile.grade is None or profile.school is None:
         return Course.objects.none()
     return (
         Course.objects.filter(
+            school=profile.school,
             grade__level=profile.grade.level,
             is_published=True,
         )

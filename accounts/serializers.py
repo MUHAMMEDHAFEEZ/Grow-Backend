@@ -1,3 +1,4 @@
+import re
 import uuid as _uuid_module
 
 from django.contrib.auth import get_user_model
@@ -185,17 +186,23 @@ class SchoolCreateSerializer(serializers.Serializer):
 
 class UseCodeSerializer(serializers.Serializer):
     code = serializers.CharField(
-        help_text="Enrollment code token (UUID format, 36 characters).",
+        help_text="Enrollment code (UUID or 8-character alphanumeric code).",
     )
 
     def validate_code(self, value: str) -> str:
         if not value or not value.strip():
             raise serializers.ValidationError("Invalid code format.")
+        code = str(value).strip().upper()
+        # Accept UUID format
         try:
-            _uuid_module.UUID(str(value).strip())
+            _uuid_module.UUID(code)
+            return code
         except (ValueError, AttributeError):
-            raise serializers.ValidationError("Invalid code format.")
-        return str(value).strip()
+            pass
+        # Accept 8-char alphanumeric format (RegistrationCode format)
+        if re.match(r'^[A-Z0-9]{8}$', code):
+            return code
+        raise serializers.ValidationError("Invalid code format.")
 
 
 class _BriefUserSerializer(serializers.ModelSerializer):

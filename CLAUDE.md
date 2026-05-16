@@ -17,6 +17,7 @@ Auto-generated from all feature plans. Last updated: 2026-05-16
 - multi-school auth: RegistrationCode model, school field on User (unique email per school), 5 new auth endpoints, seed management command, rate limiting, school-level data isolation (017-multi-school-auth)
 - grades API fix: school-scoped GradeListView, deduplication via aggregation, data migration to rename global grades to English "Grade N"; selector layer introduced in schools app (019-fix-grades-api)
 - student code consistency: signup service passes student_code as student_id; school dashboard serializer exposes student_id field (020-student-code-consistency)
+- school architecture fix: schools.Class model (auto-generated per school+grade, max 40/class); Course.school FK for school-scoped course visibility; School.admin FK for definitive admin-school mapping; accounts.School.schools_school bridge to canonical school model; two-School-model bridge; dashboard aggregation uses Class model (022-school-arch-fix)
 
 ## Project Structure
 
@@ -47,4 +48,5 @@ Python 3.11 / Django 6.0: Follow standard conventions
 - 017-multi-school-auth: Complete multi-school auth system — RegistrationCode model, school field on User (unique email per school), 5 new auth endpoints (student/teacher signup + login, school login), seed management command for schools/grades/codes, rate limiting, school-level data isolation
 - 019-fix-grades-api: Fixed /api/v1/schools/grades/ endpoint — school-scoped queries, deduplication via values+annotate aggregation, data migration 0005 to rename global grades from Arabic to "Grade N", new schools/selectors.py with get_grades_for_school()
 - 020-student-code-consistency: Fix student code consistency — signup service now passes student_code as student_id to Student.objects.create() instead of letting save() auto-generate; school dashboard serializer (SchoolStudentListSerializer) now exposes student_id field; no schema changes
+- 022-school-arch-fix: School architecture correction — schools.Class model (auto-generated per school+grade, max 40/class); Course.school FK for school-scoped course visibility; School.admin FK for definitive admin-school mapping; accounts.School.schools_school bridge to canonical school model; dashboard aggregation uses Class model (022-school-arch-fix)
 <!-- MANUAL ADDITIONS END -->
