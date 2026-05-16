@@ -170,9 +170,6 @@ class Command(BaseCommand):
                 user.set_password("123456")
                 user.save()
 
-            school1 = random.choice(list(schools.values()))
-            school2 = random.choice(list(schools.values()))
-
             self.stdout.write(self.style.SUCCESS(
                 f'✓ معلم: {full_name} ({username}) → {sub1} + {sub2}'
             ))

@@ -1,6 +1,4 @@
-from django.utils import timezone
 
-from courses.models import Course
 from students.models import StudentNotification, Student
 
 

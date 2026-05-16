@@ -1,6 +1,5 @@
 from django.db.models import QuerySet
 from django.utils import timezone
-from datetime import timedelta
 
 from .models import Submission
 
@@ -60,7 +59,6 @@ def get_teacher_active_assignments(teacher_id: int) -> int:
 def get_teacher_recent_activity(teacher_id: int, limit: int = 10) -> list:
     """Get recent submissions for teacher's assignments."""
     from assignments.models import Assignment
-    from django.db.models import F
 
     assignment_ids = Assignment.objects.filter(
         course__teacher_id=teacher_id

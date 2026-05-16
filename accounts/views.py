@@ -4,6 +4,7 @@ accounts/views.py — Auth, profile, and school admin endpoints.
 from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -454,8 +455,6 @@ def school_view(request: Request) -> Response:
 
 
 # ── Enrollment Code Endpoints ─────────────────────────────────────────────────
-
-from rest_framework.pagination import PageNumberPagination
 
 
 @extend_schema(

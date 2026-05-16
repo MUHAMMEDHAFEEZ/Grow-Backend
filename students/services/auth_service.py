@@ -13,7 +13,6 @@ from django.utils import timezone
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from core.exceptions import RateLimitExceeded, ValidationError
-from schools.models import Grade
 from schools.services.class_service import get_or_create_class
 from schools.services.registration_code_service import validate_and_consume_code
 from students.models import LoginHistory, OTPRecord, RefreshToken as StudentRefreshToken, Student, StudentSession
@@ -158,13 +157,13 @@ def student_login(school_id, email, password):
     LoginHistory.objects.get_or_create(student=user, login_date=today)
 
     StudentSession.objects.filter(student=user, is_active=True).update(is_active=False)
-    session = StudentSession.objects.create(student=user, is_active=True)
+    StudentSession.objects.create(student=user, is_active=True)
 
     StudentRefreshToken.objects.filter(student=user, is_revoked=False).update(is_revoked=True)
 
     refresh = RefreshToken.for_user(user)
 
-    student_ref = StudentRefreshToken.objects.create(
+    StudentRefreshToken.objects.create(
         student=user,
         token=str(refresh),
         expires_at=timezone.now() + timedelta(days=30),
@@ -238,7 +237,7 @@ def send_otp(email):
     _check_rate_limit(f"otp_send:{email}", 5, 3600, 3600)
 
     try:
-        user = User.objects.get(email=email)
+        User.objects.get(email=email)
     except User.DoesNotExist:
         return
 

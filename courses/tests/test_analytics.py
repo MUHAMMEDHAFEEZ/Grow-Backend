@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
-from courses.models import Course, CourseProgress, StudentCourse
+from courses.models import CourseProgress
 from courses import services
 
 User = get_user_model()

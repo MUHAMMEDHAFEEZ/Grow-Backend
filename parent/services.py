@@ -97,7 +97,6 @@ def _compute_engagement(student_id: int) -> int:
 
 
 def _compute_subject_performance(student_id: int) -> list:
-    from grades.models import Grade
     from submissions.models import Submission
     
     submissions = Submission.objects.filter(

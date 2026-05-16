@@ -5,7 +5,6 @@ from typing import List
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from django.utils import timezone
 
 from accounts.selectors import get_parent_ids_for_student
 from core.events import EventBus, Events

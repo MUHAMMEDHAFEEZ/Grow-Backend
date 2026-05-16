@@ -2,11 +2,9 @@ from datetime import datetime
 
 from django.conf import settings
 from django.core.cache import cache
-from django.db.models import Avg, Count, Sum
+from django.db.models import Avg, Sum
 from django.template.loader import render_to_string
-from django.utils import timezone
 
-from assignments.models import Assignment
 from grades.models import Grade
 from submissions.models import Submission
 from xp.models import XPTransaction

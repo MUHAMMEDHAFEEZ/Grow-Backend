@@ -6,16 +6,14 @@ for N+1 prevention. Never imports models directly from other apps — uses
 their selectors or Django ORM with explicit joins.
 """
 
-from datetime import date, timedelta
+from datetime import timedelta
 from decimal import Decimal
 from typing import Any
 
 from django.db import connection
-from django.db.models import Avg, Count, F, Prefetch, Q, Sum
-from django.db.models.functions import ExtractMonth, ExtractYear, TruncMonth
 from django.utils import timezone
 
-from accounts.models import SchoolMembership, User
+from accounts.models import User
 from attendance.models import AttendanceRecord
 from courses.models import Course, StudentCourse
 from grades.models import Grade

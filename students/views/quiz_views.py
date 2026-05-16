@@ -1,5 +1,4 @@
 from drf_spectacular.utils import extend_schema
-from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -28,10 +27,6 @@ def start_quiz_view(request, quiz_id):
         quiz = Quiz.objects.get(id=quiz_id)
     except Quiz.DoesNotExist:
         return Response({"error": "Quiz not found"}, status=404)
-
-    existing_attempt = QuizAttempt.objects.filter(
-        student=request.user, quiz=quiz
-    ).first()
 
     data = {
         "quiz_id": quiz.id,
@@ -69,7 +64,6 @@ def submit_quiz_view(request, quiz_id):
     )
     attempt_number = (last_attempt.attempt_number + 1) if last_attempt else 1
 
-    answers = serializer.validated_data["answers"]
     score = 0
     max_score = float(quiz.max_score)
     percentage = (score / max_score * 100) if max_score > 0 else 0

@@ -4,7 +4,6 @@ dashboard/services.py — Business logic: risk scoring, insights, recommendation
 All business rules live here. Delegates read queries to selectors.py.
 """
 
-from datetime import timedelta
 from io import BytesIO
 
 from django.utils import timezone
@@ -22,9 +21,7 @@ from .models import (
 )
 from .selectors import (
     calculate_risk_score,
-    get_class_detail,
     get_gpa_trend_for_class,
-    get_performance_trend_for_student,
     get_risk_summary,
 )
 

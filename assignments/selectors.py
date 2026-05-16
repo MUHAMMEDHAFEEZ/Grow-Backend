@@ -1,6 +1,5 @@
 from django.db.models import QuerySet
 
-from courses.selectors import is_enrolled
 from .models import Assignment
 
 

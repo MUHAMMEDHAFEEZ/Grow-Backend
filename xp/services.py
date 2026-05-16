@@ -84,7 +84,6 @@ def get_xp_breakdown(student):
 
     Returns dict mapping source to XP total.
     """
-    from django.db import connection
     from xp.models import XPTransaction
 
     result = (

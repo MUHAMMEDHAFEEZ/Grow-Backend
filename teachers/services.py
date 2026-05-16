@@ -4,6 +4,7 @@ import hashlib
 import logging
 import secrets
 from datetime import timedelta
+from typing import TYPE_CHECKING
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -29,11 +30,13 @@ from .models import (
     DeviceSession,
     OTPRecord,
     RefreshToken,
-    TeacherCode,
     TeacherNotification,
     TeacherNotificationPreference,
     TeacherProfile,
 )
+
+if TYPE_CHECKING:
+    from assignments.models import Assignment
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -400,7 +403,7 @@ def delete_teacher_lesson(*, teacher: User, lesson_id: int):
 # ── Assignment ──
 
 
-def create_teacher_assignment(*, teacher: User, course_id: int, **fields) -> Assignment:
+def create_teacher_assignment(*, teacher: User, course_id: int, **fields) -> "Assignment":
     from assignments.models import Assignment
     with transaction.atomic():
         try:
@@ -421,7 +424,7 @@ def create_teacher_assignment(*, teacher: User, course_id: int, **fields) -> Ass
     return assignment
 
 
-def update_teacher_assignment(*, teacher: User, assignment_id: int, **fields) -> Assignment:
+def update_teacher_assignment(*, teacher: User, assignment_id: int, **fields) -> "Assignment":
     from assignments.models import Assignment
     try:
         assignment = Assignment.objects.select_related("course").get(

@@ -1,6 +1,5 @@
 from datetime import timedelta
 
-from django.conf import settings
 from django.utils import timezone
 
 from core.exceptions import Conflict, NotFound, RateLimitExceeded, ValidationError
@@ -123,7 +122,6 @@ def get_level_progress(total_xp):
 
 def get_welcome_section(student):
     """Welcome section with student name."""
-    today = timezone.now().date()
 
     completed_today = 0
     total_today = 0

@@ -70,7 +70,6 @@ def end_session(student):
     - Minimum: 5 minutes (300 seconds) to earn XP
     - Rate: 1 XP per minute (60 seconds)
     """
-    from study_sessions.models import StudySession
 
     active = get_active_session(student)
     if not active:

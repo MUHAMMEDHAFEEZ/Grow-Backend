@@ -11,6 +11,7 @@ class GradeSerializer(serializers.ModelSerializer):
         fields = ["id", "name", "level", "stage"]
 
 
+@extend_schema_serializer(component_name="SchoolSchool")
 class SchoolSerializer(serializers.ModelSerializer):
     class Meta:
         model = School

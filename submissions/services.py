@@ -44,7 +44,6 @@ def submit_assignment(*, student: User, assignment_id: int, content: str = "", f
 
 
 def grade_submission(*, teacher: User, submission_id: int, raw_score: float = None, feedback: str = "") -> Submission:
-    from assignments.models import Assignment
 
     try:
         submission = Submission.objects.select_related("assignment__course").get(pk=submission_id)
