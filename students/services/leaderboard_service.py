@@ -1,4 +1,4 @@
-from django.db.models import Sum, F
+from django.db.models import Min, Sum
 from django.db.models.functions import Coalesce
 
 from xp.models import XPTransaction
@@ -7,10 +7,6 @@ from xp.models import XPTransaction
 def get_leaderboard(student):
     grade = getattr(getattr(student, 'student_profile', None), 'grade', None)
 
-    class_students = XPTransaction.objects.filter(
-        student__student_profile__grade=grade
-    ).values("student", "student__username")
-
     leaderboard_data = (
         XPTransaction.objects.filter(
             student__student_profile__grade=grade
@@ -18,7 +14,7 @@ def get_leaderboard(student):
         .values("student", "student__username")
         .annotate(
             total_xp=Coalesce(Sum("xp_amount"), 0),
-            earliest_xp=Sum("created_at"),
+            earliest_xp=Min("created_at"),
         )
         .order_by("-total_xp", "earliest_xp")
     )
