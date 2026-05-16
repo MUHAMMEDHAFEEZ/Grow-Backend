@@ -419,6 +419,17 @@ def use_enrollment_code(*, code_token: str, user: User) -> SchoolMembership:
                 user=user, school=acc_school, role=membership_role
             )
 
+            # Auto-create Student profile if missing (e.g. signed up via generic /api/v1/auth/signup/)
+            if user.role == "student" and not hasattr(user, "student_profile"):
+                from students.models import Student
+                grade = getattr(code_obj, "grade", None)
+                Student.objects.create(
+                    user=user,
+                    school=school,
+                    grade=grade,
+                    full_name=user.email.split("@")[0],
+                )
+
             # Reset rate limit counters
             rate_limit.failed_attempts = 0
             rate_limit.locked_until    = None
