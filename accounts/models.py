@@ -67,6 +67,13 @@ class School(models.Model):
         related_name="owned_school",
         limit_choices_to={"role": "school_admin"},
     )
+    schools_school = models.OneToOneField(
+        "schools.School",
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="accounts_school",
+        help_text="Bridge to the canonical seeded school model.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     def save(self, *args, **kwargs):

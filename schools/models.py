@@ -26,6 +26,13 @@ class School(models.Model):
         ('language', 'لغات')
     ])
     address = models.TextField(blank=True, null=True)
+    admin = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="managed_schools",
+        help_text="The school admin user for this school.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -60,6 +67,27 @@ class RegistrationCode(models.Model):
 
     def __str__(self):
         return f"RegistrationCode({self.code}, {self.code_type}, used={self.is_used})"
+
+
+class Class(models.Model):
+    """An auto-generated student grouping within a school and grade."""
+    name = models.CharField(max_length=50)
+    school = models.ForeignKey(
+        "School", on_delete=models.CASCADE, related_name="classes"
+    )
+    grade = models.ForeignKey(
+        "Grade", on_delete=models.CASCADE, related_name="classes"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [("school", "grade", "name")]
+        indexes = [
+            models.Index(fields=["school", "grade"]),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.school.name})"
 
 
 class Subject(models.Model):

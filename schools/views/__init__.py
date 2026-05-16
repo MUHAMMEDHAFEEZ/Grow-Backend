@@ -19,6 +19,8 @@ from schools.services.school_auth_service import login_school_admin
 from students.selectors import get_students_by_school
 from students.serializers.school_student_serializers import SchoolStudentListSerializer
 
+from .class_views import class_detail_view  # noqa: F401
+
 
 class GradeListView(ListAPIView):
     serializer_class = GradeSerializer
@@ -44,10 +46,12 @@ class StudentPagination(PageNumberPagination):
 def _get_admin_school(user):
     """Resolve school_admin user to their schools.School instance.
 
-    Uses the email domain prefix (e.g. admin@ELOBOUR.edu -> ELOBOUR)
-    to match the school name. Falls back to accounts.School.owned_school
-    if that record exists.
+    Uses School.admin FK first (authoritative). Falls back to email-domain
+    heuristic for backward compatibility with existing data.
     """
+    school = School.objects.filter(admin=user).first()
+    if school:
+        return school
     try:
         accounts_school = user.owned_school
         return School.objects.get(name=accounts_school.name)

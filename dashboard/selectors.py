@@ -225,12 +225,26 @@ def calculate_risk_score(student_id: int) -> dict[str, Any]:
 
 
 def get_dashboard_overview(
-    period: str = "month", academic_year: str | None = None
+    period: str = "month",
+    academic_year: str | None = None,
+    school_id: int | None = None,
 ) -> dict[str, Any]:
-    """Returns KPIs, active alerts, and chart data for the overview page."""
-    total_students = User.objects.filter(role=User.Role.STUDENT).count()
-    total_teachers = User.objects.filter(role=User.Role.TEACHER).count()
-    total_classes = Course.objects.count()
+    """Returns KPIs, active alerts, and chart data for the overview page.
+
+    When school_id is provided, all aggregations are scoped to that school.
+    """
+    if school_id:
+        from schools.models import Class as SchoolClass
+        from students.models import Student
+        total_students = Student.objects.filter(school_id=school_id).count()
+        total_teachers = User.objects.filter(
+            role=User.Role.TEACHER, taught_courses__school_id=school_id
+        ).distinct().count()
+        total_classes = SchoolClass.objects.filter(school_id=school_id).count()
+    else:
+        total_students = User.objects.filter(role=User.Role.STUDENT).count()
+        total_teachers = User.objects.filter(role=User.Role.TEACHER).count()
+        total_classes = Course.objects.count()
 
     students = User.objects.filter(role=User.Role.STUDENT)
     gpas = []

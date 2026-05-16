@@ -17,6 +17,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from core.exceptions import Conflict, NotFound, PermissionDenied, RateLimitExceeded, ValidationError
 from core.rate_limit import check_rate_limit, is_blocked
 
+from schools.models import RegistrationCode
+
 from .models import (
     EnrollmentCode,
     EnrollmentCodeEvent,
@@ -277,7 +279,9 @@ def generate_enrollment_codes(
 def use_enrollment_code(*, code_token: str, user: User) -> SchoolMembership:
     """
     Validate and atomically consume `code_token`, enrolling `user` in the
-    associated school. Enforces rate limiting, teacher one-school restriction,
+    associated school. Supports both UUID-style EnrollmentCode tokens and
+    8-character alphanumeric RegistrationCode tokens from the seeder.
+    Enforces rate limiting, teacher one-school restriction,
     and duplicate-membership checks.
     """
     now = timezone.now()
@@ -298,11 +302,14 @@ def use_enrollment_code(*, code_token: str, user: User) -> SchoolMembership:
         rate_limit.window_start = now
         rate_limit.save(update_fields=["failed_attempts", "window_start"])
 
-    # ── Step 2: Format validation (no rate-limit increment on format errors) ───
+    # ── Step 2: Normalize and detect code type ────────────────────────────────
+    code_token = str(code_token).strip().upper()
+    is_uuid_code = False
     try:
-        _uuid_module.UUID(str(code_token))
+        _uuid_module.UUID(code_token)
+        is_uuid_code = True
     except (ValueError, AttributeError):
-        raise ValidationError("Invalid code format.")
+        pass
 
     # ── Helper: increment failure counter ─────────────────────────────────────
     def _fail(message: str) -> None:
@@ -325,18 +332,29 @@ def use_enrollment_code(*, code_token: str, user: User) -> SchoolMembership:
 
     try:
         with transaction.atomic():
-            try:
-                code = EnrollmentCode.objects.select_for_update().get(token=code_token)
-            except EnrollmentCode.DoesNotExist:
-                raise _CodeStatusError("This code is invalid.")
+            if is_uuid_code:
+                try:
+                    code_obj = EnrollmentCode.objects.select_for_update().get(token=code_token)
+                except EnrollmentCode.DoesNotExist:
+                    raise _CodeStatusError("This code is invalid.")
 
-            if code.status == EnrollmentCode.Status.USED:
-                raise _CodeStatusError("This code has already been used.")
-            if code.status == EnrollmentCode.Status.REVOKED:
-                raise _CodeStatusError("This code is no longer valid.")
+                if code_obj.status == EnrollmentCode.Status.USED:
+                    raise _CodeStatusError("This code has already been used.")
+                if code_obj.status == EnrollmentCode.Status.REVOKED:
+                    raise _CodeStatusError("This code is no longer valid.")
+            else:
+                code_obj = (
+                    RegistrationCode.objects.select_for_update()
+                    .filter(code=code_token, is_used=False)
+                    .first()
+                )
+                if not code_obj:
+                    raise _CodeStatusError("This code is invalid.")
+
+            school = code_obj.school
 
             # Already member — no counter increment (not a wrong code)
-            if SchoolMembership.objects.filter(user=user, school=code.school).exists():
+            if SchoolMembership.objects.filter(user=user, school=school).exists():
                 raise ValidationError("You are already a member of this school.")
 
             # Teacher one-school restriction (admin role is exempt)
@@ -360,21 +378,26 @@ def use_enrollment_code(*, code_token: str, user: User) -> SchoolMembership:
             membership_role = _role_map.get(user.role, SchoolMembership.Role.STUDENT)
 
             # Consume code
-            code.status  = EnrollmentCode.Status.USED
-            code.used_by = user
-            code.used_at = now
-            code.save(update_fields=["status", "used_by", "used_at"])
+            if is_uuid_code:
+                code_obj.status  = EnrollmentCode.Status.USED
+                code_obj.used_by = user
+                code_obj.used_at = now
+                code_obj.save(update_fields=["status", "used_by", "used_at"])
+
+                # Audit event
+                EnrollmentCodeEvent.objects.create(
+                    code=code_obj,
+                    event_type=EnrollmentCodeEvent.EventType.USED,
+                    actor=user,
+                )
+            else:
+                code_obj.is_used = True
+                code_obj.used_by = user
+                code_obj.save(update_fields=["is_used", "used_by"])
 
             # Create membership
             membership = SchoolMembership.objects.create(
-                user=user, school=code.school, role=membership_role
-            )
-
-            # Audit event
-            EnrollmentCodeEvent.objects.create(
-                code=code,
-                event_type=EnrollmentCodeEvent.EventType.USED,
-                actor=user,
+                user=user, school=school, role=membership_role
             )
 
             # Reset rate limit counters

@@ -18,6 +18,7 @@ from courses.models import (
     Question,
     Quiz,
 )
+from schools.models import Grade
 from submissions.models import Submission
 from xp.models import XPTransaction
 
@@ -284,12 +285,15 @@ def change_password(*, user: User, new_password: str):
 
 def create_teacher_course(*, teacher: User, title: str, description: str = "", grade_id: int | None = None, is_published: bool = False, grade=None) -> Course:
     resolved_grade_id = getattr(grade, "pk", grade) or grade_id
+    grade_obj = grade if isinstance(grade, Grade) else Grade.objects.filter(pk=resolved_grade_id).first()
+    school_id = grade_obj.school_id if grade_obj else None
     course = Course.objects.create(
         teacher=teacher,
         title=title,
         description=description,
         grade_id=resolved_grade_id,
         is_published=is_published,
+        school_id=school_id,
     )
     _log_audit("teacher", teacher.id, "create", "Course", course.id)
     return course

@@ -13,6 +13,8 @@ from django.utils import timezone
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from core.exceptions import RateLimitExceeded, ValidationError
+from schools.models import Grade
+from schools.services.class_service import get_or_create_class
 from schools.services.registration_code_service import validate_and_consume_code
 from students.models import LoginHistory, OTPRecord, RefreshToken as StudentRefreshToken, Student, StudentSession
 
@@ -100,11 +102,20 @@ def student_signup(school_id, full_name, email, password, student_code):
 
         student = Student.objects.create(
             user=user,
-            school_id=school_id,
+            school=code_obj.school,
             grade=code_obj.grade,
             full_name=full_name,
             student_id=student_code,
         )
+
+        student_count = Student.objects.filter(
+            school=code_obj.school, grade=code_obj.grade
+        ).count()
+        letter_index = (student_count - 1) // 40
+        letter = chr(65 + letter_index)
+        class_obj = get_or_create_class(code_obj.school, code_obj.grade, letter)
+        student.class_fk = class_obj
+        student.save(update_fields=["class_fk"])
 
     refresh = RefreshToken.for_user(user)
     StudentSession.objects.create(student=user, is_active=True)

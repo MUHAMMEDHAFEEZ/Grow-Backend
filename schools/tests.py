@@ -1,13 +1,115 @@
 import re
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from schools.models import Grade, School
+from schools.models import Class, Grade, School
+from schools.services.class_service import (
+    _letter_for_index,
+    auto_generate_classes,
+    get_or_create_class,
+)
 from students.models import Student
 
 User = get_user_model()
+
+
+class AutoGenerateClassesTest(TestCase):
+    def setUp(self):
+        self.school = School.objects.create(
+            name="TESTSCHOOL", school_code="TS", school_type="arabic"
+        )
+        self.grade = Grade.objects.create(
+            name="Grade 9", level=9, stage="secondary", school=self.school
+        )
+        self._offset = 0
+
+    def _make_students(self, count: int, grade=None):
+        g = grade or self.grade
+        for i in range(count):
+            idx = self._offset + i
+            user = User.objects.create_user(
+                username=f"student_{g.level}_{idx}",
+                email=f"student_{g.level}_{idx}@test.com",
+                password="pass1234",
+                role=User.Role.STUDENT,
+            )
+            Student.objects.create(
+                full_name=f"Student {g.level} {chr(65 + i)}",
+                user=user,
+                school=self.school,
+                grade=g,
+            )
+        self._offset += count
+
+    def test_35_students_1_class(self):
+        self._make_students(35)
+        classes = auto_generate_classes(self.school.id)
+        self.assertEqual(len(classes), 1)
+        self.assertEqual(
+            Class.objects.get(id=classes[0].id).students.count(), 35
+        )
+
+    def test_60_students_2_classes(self):
+        self._make_students(60)
+        classes = auto_generate_classes(self.school.id)
+        self.assertEqual(len(classes), 2)
+
+    def test_95_students_3_classes(self):
+        self._make_students(95)
+        classes = auto_generate_classes(self.school.id)
+        self.assertEqual(len(classes), 3)
+
+    def test_deterministic_same_input_same_output(self):
+        self._make_students(35)
+        result1 = auto_generate_classes(self.school.id)
+        result2 = auto_generate_classes(self.school.id)
+        names1 = [(c.name, c.school_id, c.grade_id) for c in result1]
+        names2 = [(c.name, c.school_id, c.grade_id) for c in result2]
+        self.assertEqual(names1, names2)
+
+    def test_classes_named_correctly(self):
+        self._make_students(105)
+        classes = auto_generate_classes(self.school.id)
+        names = sorted(c.name for c in classes)
+        self.assertEqual(names, ["Class 9 A", "Class 9 B", "Class 9 C"])
+
+    def test_students_assigned_to_class(self):
+        self._make_students(35)
+        auto_generate_classes(self.school.id)
+        class_obj = Class.objects.get(name="Class 9 A")
+        students = Student.objects.filter(class_fk=class_obj)
+        self.assertEqual(students.count(), 35)
+
+
+class LetterForIndexTest(TestCase):
+    def test_letter_for_index(self):
+        self.assertEqual(_letter_for_index(0), "A")
+        self.assertEqual(_letter_for_index(1), "B")
+        self.assertEqual(_letter_for_index(25), "Z")
+
+
+class GetOrCreateClassTest(TestCase):
+    def setUp(self):
+        self.school = School.objects.create(
+            name="TESTSCHOOL", school_code="TS", school_type="arabic"
+        )
+        self.grade = Grade.objects.create(
+            name="Grade 10", level=10, stage="secondary", school=self.school
+        )
+
+    def test_get_or_create_creates_new(self):
+        class_obj = get_or_create_class(self.school, self.grade, "A")
+        self.assertEqual(class_obj.name, "Class 10 A")
+        self.assertEqual(class_obj.school, self.school)
+        self.assertEqual(class_obj.grade, self.grade)
+
+    def test_get_or_create_returns_existing(self):
+        class_obj1 = get_or_create_class(self.school, self.grade, "A")
+        class_obj2 = get_or_create_class(self.school, self.grade, "A")
+        self.assertEqual(class_obj1.id, class_obj2.id)
 
 
 class SchoolStudentListTest(TestCase):

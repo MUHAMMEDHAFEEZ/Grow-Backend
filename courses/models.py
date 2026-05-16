@@ -20,6 +20,13 @@ class Course(models.Model):
         blank=True,
         related_name="course_list",
     )
+    school = models.ForeignKey(
+        "schools.School",
+        on_delete=models.CASCADE,
+        null=True,
+        related_name="courses",
+        help_text="The school this course belongs to (populated from grade.school).",
+    )
     is_published = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     target_capacity = models.PositiveIntegerField(

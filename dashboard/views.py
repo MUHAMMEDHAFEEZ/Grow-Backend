@@ -10,6 +10,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from schools.models import School as SchoolSchool
+
 from .permissions import IsSchoolAdmin, IsTeacherOrSchoolAdmin
 from .selectors import (
     get_class_detail,
@@ -38,6 +40,13 @@ from .services import (
 )
 
 
+def _resolve_school(user):
+    """Resolve a user to their schools.School, if possible."""
+    if user.role == "school_admin":
+        return SchoolSchool.objects.filter(admin=user).first()
+    return None
+
+
 @extend_schema(
     tags=["Dashboard"],
     summary="Get dashboard overview",
@@ -49,7 +58,11 @@ from .services import (
 def dashboard_overview(request):
     period = request.query_params.get("period", "month")
     academic_year = request.query_params.get("academic_year")
-    data = get_dashboard_overview(period=period, academic_year=academic_year)
+    school = _resolve_school(request.user)
+    school_id = school.id if school else None
+    data = get_dashboard_overview(
+        period=period, academic_year=academic_year, school_id=school_id
+    )
     return Response(data)
 
 

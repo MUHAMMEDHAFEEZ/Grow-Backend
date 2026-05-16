@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.conf import settings
-from schools.models import School, Grade
+from schools.models import School, Grade, Class as SchoolClass
 
 User = get_user_model()
 
@@ -34,6 +34,14 @@ class Student(models.Model):
         on_delete=models.SET_NULL, 
         null=True, 
         blank=True
+    )
+
+    class_fk = models.ForeignKey(
+        SchoolClass,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="students",
+        help_text="The auto-generated class this student belongs to.",
     )
 
     full_name = models.CharField(max_length=150)
