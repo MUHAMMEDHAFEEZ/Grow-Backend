@@ -299,14 +299,29 @@ def change_password(*, user: User, new_password: str):
 def create_teacher_course(*, teacher: User, title: str, description: str = "", grade_id: int | None = None, is_published: bool = True, grade=None) -> Course:
     resolved_grade_id = getattr(grade, "pk", grade) or grade_id
     grade_obj = grade if isinstance(grade, Grade) else Grade.objects.filter(pk=resolved_grade_id).first()
-    school_id = grade_obj.school_id if grade_obj else None
+
+    # Determine school from teacher's profile (authoritative, not from grade)
+    profile = getattr(teacher, "teacher_profile", None)
+    if not profile:
+        raise ValidationError("Teacher profile not found.")
+    acc_school = profile.school
+    school = getattr(acc_school, "schools_school", None)
+    if not school:
+        raise ValidationError("Your school account is not fully configured.")
+
+    # If a grade was provided, ensure it belongs to the teacher's school
+    if grade_obj and grade_obj.school_id != school.pk:
+        grade_obj = Grade.objects.filter(school=school, level=grade_obj.level).first()
+        if not grade_obj:
+            raise ValidationError(f"Grade level {grade_obj.level} not found in your school.")
+
     course = Course.objects.create(
         teacher=teacher,
         title=title,
         description=description,
-        grade_id=resolved_grade_id,
+        grade=grade_obj,
         is_published=is_published,
-        school_id=school_id,
+        school=school,
     )
     _log_audit("teacher", teacher.id, "create", "Course", course.id)
     return course
