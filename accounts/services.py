@@ -353,8 +353,16 @@ def use_enrollment_code(*, code_token: str, user: User) -> SchoolMembership:
 
             school = code_obj.school
 
+            # Resolve accounts.School via the schools_school bridge
+            acc_school = getattr(school, "accounts_school", None)
+            if acc_school is None:
+                from accounts.models import School as AccSchool
+                acc_school = AccSchool.objects.filter(name=school.name).first()
+            if acc_school is None:
+                raise ValidationError("School account not configured.")
+
             # Already member — no counter increment (not a wrong code)
-            if SchoolMembership.objects.filter(user=user, school=school).exists():
+            if SchoolMembership.objects.filter(user=user, school=acc_school).exists():
                 raise ValidationError("You are already a member of this school.")
 
             # Teacher one-school restriction (admin role is exempt)
@@ -397,7 +405,7 @@ def use_enrollment_code(*, code_token: str, user: User) -> SchoolMembership:
 
             # Create membership
             membership = SchoolMembership.objects.create(
-                user=user, school=school, role=membership_role
+                user=user, school=acc_school, role=membership_role
             )
 
             # Reset rate limit counters
