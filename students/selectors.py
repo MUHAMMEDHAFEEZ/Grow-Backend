@@ -211,11 +211,14 @@ def get_upcoming_session(student):
 def get_courses_for_student(student, filter_status="all"):
     from courses.models import Course, CourseProgress
 
-    grade = getattr(getattr(student, 'student_profile', None), 'grade', None)
-    if grade is None:
+    profile = getattr(student, 'student_profile', None)
+    if profile is None or profile.grade is None:
         return []
 
-    courses = Course.objects.filter(grade=grade, is_published=True).prefetch_related("lessons")
+    courses = Course.objects.filter(
+        grade__level=profile.grade.level,
+        is_published=True,
+    ).prefetch_related("lessons")
 
     if filter_status == "inprogress":
         completed_ids = CourseProgress.objects.filter(
@@ -368,6 +371,7 @@ def get_student_settings(student):
 
     return {
         "full_name": profile.full_name if profile else None,
+        "email": student.email,
         "student_id": profile.student_id if profile else None,
         "school": profile.school.name if profile and profile.school else None,
         "grade": profile.grade.name if profile and profile.grade else None,

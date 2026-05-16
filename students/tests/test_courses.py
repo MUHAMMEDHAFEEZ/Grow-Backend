@@ -13,7 +13,8 @@ class StudentCoursesTest(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.school = School.objects.create(name="Test School")
-        self.grade = Grade.objects.create(name="Grade 5", level=5)
+        self.student_grade = Grade.objects.create(name="Grade 5", level=5, school=self.school)
+        self.course_grade = Grade.objects.create(name="Grade 5", level=5, school=None)
 
         self.user = User.objects.create_user(
             username="student", email="student@test.com",
@@ -25,15 +26,16 @@ class StudentCoursesTest(TestCase):
             student_id="STU-2024-G5-001",
             generated_password="STU-2024-G5-001",
             school=self.school,
-            grade=self.grade,
+            grade=self.student_grade,
         )
 
         self.course = Course.objects.create(
-            title="Math 101", grade=self.grade,
+            title="Math 101", grade=self.course_grade,
             teacher=User.objects.create_user(
                 username="teacher", email="teacher@test.com",
                 password="testpass123", role="teacher"
             ),
+            is_published=True,
         )
 
         refresh = RefreshToken.for_user(self.user)
