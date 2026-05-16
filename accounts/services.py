@@ -359,7 +359,18 @@ def use_enrollment_code(*, code_token: str, user: User) -> SchoolMembership:
                 from accounts.models import School as AccSchool
                 acc_school = AccSchool.objects.filter(name=school.name).first()
             if acc_school is None:
-                raise ValidationError("School account not configured.")
+                admin_user = getattr(school, "admin", None)
+                if admin_user:
+                    from accounts.models import School as AccSchool
+                    acc_school, _ = AccSchool.objects.get_or_create(
+                        schools_school=school,
+                        defaults={
+                            "name": school.name,
+                            "created_by": admin_user,
+                        },
+                    )
+                else:
+                    raise ValidationError("School account not configured.")
 
             # Already member — no counter increment (not a wrong code)
             if SchoolMembership.objects.filter(user=user, school=acc_school).exists():

@@ -115,6 +115,15 @@ def _log_audit(actor_type: str, actor_id: int, action: str, resource_type: str, 
 # ── Auth ──
 
 
+def _resolve_accounts_school(school_id: int):
+    """Resolve a schools.School PK to its corresponding accounts.School via bridge FK."""
+    from accounts.models import School as AccountSchool
+    acc_school = AccountSchool.objects.filter(schools_school_id=school_id).first()
+    if not acc_school:
+        raise ValidationError("School not found.")
+    return acc_school
+
+
 @transaction.atomic
 def signup_teacher(*, school_id: int, full_name: str, email: str, password: str, teacher_code: str, ip_address: str | None = None) -> tuple[User, str, str]:
     if User.objects.filter(email=email).exists():
@@ -140,9 +149,10 @@ def signup_teacher(*, school_id: int, full_name: str, email: str, password: str,
     code_obj.used_by = user
     code_obj.save(update_fields=["used_by"])
 
+    acc_school = _resolve_accounts_school(school_id)
     TeacherProfile.objects.create(
         user=user,
-        school_id=school_id,
+        school=acc_school,
     )
     TeacherNotificationPreference.objects.create(teacher=user)
 
@@ -184,7 +194,7 @@ def login_teacher(*, school_id: int, email: str, password: str, ip_address: str 
         raise ValidationError("Invalid email or password.")
 
     profile = getattr(user, "teacher_profile", None)
-    if profile is None or profile.school_id != school_id:
+    if profile is None or profile.school.schools_school_id != school_id:
         raise ValidationError("Invalid email or password.")
 
     if profile.status != TeacherProfile.Status.ACTIVE:
@@ -286,7 +296,7 @@ def change_password(*, user: User, new_password: str):
 # ── Course ──
 
 
-def create_teacher_course(*, teacher: User, title: str, description: str = "", grade_id: int | None = None, is_published: bool = False, grade=None) -> Course:
+def create_teacher_course(*, teacher: User, title: str, description: str = "", grade_id: int | None = None, is_published: bool = True, grade=None) -> Course:
     resolved_grade_id = getattr(grade, "pk", grade) or grade_id
     grade_obj = grade if isinstance(grade, Grade) else Grade.objects.filter(pk=resolved_grade_id).first()
     school_id = grade_obj.school_id if grade_obj else None
