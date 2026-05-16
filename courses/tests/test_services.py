@@ -5,8 +5,8 @@ from django.test import TestCase
 from django.contrib.auth import get_user_model
 
 from core.events import EventBus
-from core.exceptions import Conflict, PermissionDenied, NotFound, RateLimitExceeded
-from courses.models import Course, Lesson, LessonActivity, Quiz, QuizAttempt, StudentCourse
+from core.exceptions import PermissionDenied, RateLimitExceeded
+from courses.models import Lesson, LessonActivity, Quiz
 from courses import services
 
 User = get_user_model()

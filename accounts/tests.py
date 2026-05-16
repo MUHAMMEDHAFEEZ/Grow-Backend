@@ -223,7 +223,7 @@ class ProfileTest(TestCase):
 class SchoolAdminTest(TestCase):
     def setUp(self):
         self.client = APIClient()
-        admin_user = _create_school_admin(email="admin@school.io")
+        _create_school_admin(email="admin@school.io")
         access, _ = _auth_client(self.client, "admin@school.io", "AdminPass123")
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
 
@@ -329,7 +329,7 @@ class UseEnrollmentCodeTest(TestCase):
         _create_school_admin(email="admin_use@test.io")
         admin_access, _ = _auth_client(self.client, "admin_use@test.io", "AdminPass123")
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {admin_access}")
-        resp = self.client.post(f"{BASE}/school/", {"name": "Use Code School"})
+        self.client.post(f"{BASE}/school/", {"name": "Use Code School"})
         self.school = School.objects.get(name="Use Code School")
 
         # Register a student

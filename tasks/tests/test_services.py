@@ -6,7 +6,7 @@ from django.test import TestCase
 from django.contrib.auth import get_user_model
 
 from core.events import EventBus, Events
-from courses.models import Course, Lesson, Quiz, StudentCourse
+from courses.models import Course, StudentCourse
 from tasks.models import StudentTask
 from tasks import services as task_services
 

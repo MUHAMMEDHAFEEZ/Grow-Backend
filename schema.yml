@@ -2913,7 +2913,31 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaginatedSchoolList'
+                $ref: '#/components/schemas/PaginatedSchoolSchoolList'
+          description: ''
+  /api/v1/schools/classes/{class_id}/:
+    get:
+      operationId: schools_classes_retrieve
+      description: Returns detailed analytics for a class, scoped to the school admin's
+        school.
+      summary: Get class detail
+      parameters:
+      - in: path
+        name: class_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - School Admin
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SchoolClassDetail'
           description: ''
   /api/v1/schools/grades/:
     get:
@@ -5881,7 +5905,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/SchoolGrade'
-    PaginatedSchoolList:
+    PaginatedSchoolSchoolList:
       type: object
       required:
       - count
@@ -5903,7 +5927,7 @@ components:
         results:
           type: array
           items:
-            $ref: '#/components/schemas/School'
+            $ref: '#/components/schemas/SchoolSchool'
     ParentGPA:
       type: object
       properties:
@@ -6597,6 +6621,46 @@ components:
       - id
       - name
       - slug
+    SchoolClassDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        grade_name:
+          type: string
+        grade_level:
+          type: integer
+        school_name:
+          type: string
+        student_count:
+          type: integer
+        teacher_count:
+          type: integer
+        active_students:
+          type: integer
+        top_performance:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+        assigned_teachers:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+      required:
+      - active_students
+      - assigned_teachers
+      - grade_level
+      - grade_name
+      - id
+      - name
+      - school_name
+      - student_count
+      - teacher_count
+      - top_performance
     SchoolCreateRequest:
       type: object
       properties:
@@ -6661,6 +6725,25 @@ components:
       - role
       - user_id
       - username
+    SchoolSchool:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        school_code:
+          type: string
+          maxLength: 50
+        school_type:
+          $ref: '#/components/schemas/SchoolTypeEnum'
+      required:
+      - id
+      - name
+      - school_code
+      - school_type
     SchoolStudentList:
       type: object
       properties:
@@ -6671,6 +6754,8 @@ components:
         email:
           type: string
           readOnly: true
+        student_id:
+          type: string
         grade_name:
           type: string
           readOnly: true
@@ -6687,6 +6772,15 @@ components:
       - grade_level
       - grade_name
       - id
+      - student_id
+    SchoolTypeEnum:
+      enum:
+      - arabic
+      - language
+      type: string
+      description: |-
+        * `arabic` - عربي
+        * `language` - لغات
     SendOTPRequest:
       type: object
       properties:
@@ -7037,6 +7131,9 @@ components:
       properties:
         full_name:
           type: string
+        email:
+          type: string
+          format: email
         school:
           type: string
           nullable: true
@@ -7051,6 +7148,7 @@ components:
           type: integer
       required:
       - courses_count
+      - email
       - full_name
       - grade
       - school
@@ -8079,7 +8177,7 @@ components:
         code:
           type: string
           minLength: 1
-          description: Enrollment code token (UUID format, 36 characters).
+          description: Enrollment code (UUID or 8-character alphanumeric code).
       required:
       - code
     User:

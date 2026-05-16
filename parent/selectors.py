@@ -1,6 +1,4 @@
 from django.contrib.auth import get_user_model
-from django.db.models import Avg, Count, Q
-from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from grades.models import Grade

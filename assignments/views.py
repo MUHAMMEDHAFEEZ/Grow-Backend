@@ -6,7 +6,6 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 
-from core.permissions import IsTeacher
 
 from . import selectors, services
 from .serializers import AssignmentSerializer, AssignmentWriteSerializer

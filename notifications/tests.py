@@ -8,7 +8,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from core.events import EventBus
-from core.exceptions import NotFound, PermissionDenied
+from core.exceptions import PermissionDenied
 from courses import services as course_services
 from assignments.services import create_assignment
 from submissions.services import submit_assignment
@@ -104,7 +104,7 @@ class NotificationHandlerTest(TestCase):
 
     def test_on_submission_created(self):
         Notification.objects.all().delete()
-        submission = submit_assignment(
+        submit_assignment(
             student=self.student, assignment_id=self.assignment.pk, content="My work"
         )
         notif = Notification.objects.filter(recipient=self.teacher, event_type="submission_created").first()

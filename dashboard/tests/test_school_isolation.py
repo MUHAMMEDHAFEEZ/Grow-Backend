@@ -3,7 +3,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from courses.models import Course
-from schools.models import Class, Grade, School
+from schools.models import Grade, School
 from schools.services.class_service import auto_generate_classes
 from students.models import Student
 
@@ -26,7 +26,7 @@ class DashboardSchoolIsolationTest(TestCase):
         grade_a_9 = Grade.objects.create(
             name="Grade 9", level=9, stage="secondary", school=self.school_a
         )
-        grade_a_10 = Grade.objects.create(
+        Grade.objects.create(
             name="Grade 10", level=10, stage="secondary", school=self.school_a
         )
         grade_b_9 = Grade.objects.create(

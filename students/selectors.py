@@ -1,4 +1,4 @@
-from django.db.models import Sum, Count, Q, F
+from django.db.models import Sum
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
@@ -137,7 +137,6 @@ def get_student_weekly_hours(student):
 
 def get_leaderboard(limit=10):
     """Get top students by XP."""
-    from accounts.models import User
 
     top_students = XPTransaction.objects.values(
         'student__id',
@@ -265,7 +264,7 @@ def get_course_detail(course_id, student):
         })
 
     total_lessons = lessons.count()
-    completed_lessons = sum(1 for l in lesson_data if l["is_completed"])
+    completed_lessons = sum(1 for _ in lesson_data if _["is_completed"])
     completion_pct = (completed_lessons / total_lessons * 100) if total_lessons > 0 else 0
 
     return {

@@ -8,7 +8,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from core.events import EventBus
-from core.exceptions import Conflict, NotFound, PermissionDenied
+from core.exceptions import Conflict, PermissionDenied
 from courses import services as course_services
 from assignments.services import create_assignment
 from submissions import services

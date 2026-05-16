@@ -1,6 +1,5 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
-from rest_framework.test import APIClient
 
 from courses.models import Course
 from courses.selectors import get_enrolled_courses

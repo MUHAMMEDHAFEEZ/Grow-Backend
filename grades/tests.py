@@ -15,7 +15,6 @@ from assignments.services import create_assignment
 from submissions.services import submit_assignment
 from grades.services import grade_submission
 from grades import selectors
-from grades.models import Grade
 from submissions.models import Submission
 
 User = get_user_model()

@@ -1,5 +1,3 @@
-from django.db.models import Sum, Count
-from django.db.models.functions import Coalesce
 
 
 def get_active_session(student):

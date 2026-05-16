@@ -1,4 +1,4 @@
-from django.db.models import Avg, Sum, Count, Q
+from django.db.models import Avg, Sum
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from datetime import timedelta

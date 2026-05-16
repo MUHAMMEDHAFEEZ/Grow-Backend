@@ -1,6 +1,6 @@
 from django.db import transaction
 
-from courses.models import Course, CourseProgress, Lesson
+from courses.models import CourseProgress, Lesson
 from students.models import LessonCompletion
 
 

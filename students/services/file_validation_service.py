@@ -1,6 +1,5 @@
 import os
 
-from django.conf import settings
 
 ALLOWED_EXTENSIONS = {".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png", ".zip"}
 MAX_FILE_SIZE = 20 * 1024 * 1024

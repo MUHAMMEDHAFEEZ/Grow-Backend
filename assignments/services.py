@@ -6,7 +6,6 @@ from django.utils import timezone
 from core.events import EventBus, Events
 from core.exceptions import NotFound, PermissionDenied, ValidationError
 
-from courses.selectors import is_enrolled
 from .models import Assignment
 
 User = get_user_model()

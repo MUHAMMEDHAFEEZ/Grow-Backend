@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Grade, RegistrationCode, School, Subject
+from .models import RegistrationCode
 
 
 @admin.register(RegistrationCode)

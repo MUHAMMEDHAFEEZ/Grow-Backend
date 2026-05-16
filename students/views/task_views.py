@@ -3,19 +3,15 @@ from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from drf_spectacular.utils import extend_schema
-from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from assignments.models import Assignment
 from core.permissions import IsStudent
 from students.selectors import get_past_due_items, get_todays_missions
 from students.serializers.task_serializers import TasksResponseSerializer
 from students.services.daily_master_service import get_or_create_daily_log
 from students.services.streak_service import calculate_streak
-from students.services.xp_service import get_total_xp
-from submissions.models import Submission
 from xp.models import XPTransaction
 
 

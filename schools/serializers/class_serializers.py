@@ -1,6 +1,8 @@
+from drf_spectacular.utils import extend_schema_serializer
 from rest_framework import serializers
 
 
+@extend_schema_serializer(component_name="SchoolClassDetail")
 class ClassDetailSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     name = serializers.CharField()

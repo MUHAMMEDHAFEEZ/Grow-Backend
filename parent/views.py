@@ -11,7 +11,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from core.exceptions import Conflict, RateLimitExceeded, ValidationError
+from core.exceptions import Conflict, NotFound, RateLimitExceeded, ValidationError
 from core.permissions import IsParent
 
 from students.models import Student

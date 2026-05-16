@@ -10,7 +10,7 @@ from django.utils import timezone
 from attendance.domain import AttendanceResult, LessonAttendanceSummary
 from attendance.services import calculate_attendance_status, upsert_attendance
 from core.events import EventBus, Events
-from core.exceptions import Conflict, NotFound, PermissionDenied, RateLimitExceeded
+from core.exceptions import NotFound, PermissionDenied, RateLimitExceeded
 
 from .models import Course, CourseProgress, Lesson, LessonActivity, Quiz, QuizAttempt, StudentCourse
 from .selectors import (

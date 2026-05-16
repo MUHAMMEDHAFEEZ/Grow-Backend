@@ -4,9 +4,8 @@ from core.exceptions import ValidationError
 
 
 def login_school_admin(*, username: str, password: str):
-    from django.contrib.auth import authenticate, get_user_model
+    from django.contrib.auth import authenticate
 
-    User = get_user_model()
     user = authenticate(username=username, password=password)
     if user is None or not user.is_school_admin:
         raise ValidationError("Invalid credentials.")

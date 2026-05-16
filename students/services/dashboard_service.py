@@ -12,9 +12,6 @@ def get_dashboard(student):
     daily_master = get_or_create_daily_log(student)
     leaderboard = get_leaderboard(student)
 
-    completed = len([t for t in todays_tasks if t["status"] == "submitted"])
-    total = len(todays_tasks)
-
     return {
         "total_xp": total_xp,
         "daily_streak": daily_streak,

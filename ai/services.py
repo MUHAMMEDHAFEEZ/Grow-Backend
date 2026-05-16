@@ -1,5 +1,4 @@
 import os
-from django.conf import settings
 
 
 def build_student_context(student):
@@ -64,7 +63,7 @@ def call_ai_api(prompt):
         )
 
         return response.choices[0].message.content
-    except Exception as e:
+    except Exception:
         return None
 
 

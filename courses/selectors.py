@@ -8,7 +8,6 @@ import datetime
 
 from django.contrib.auth import get_user_model
 from django.db.models import QuerySet, Sum
-from django.utils import timezone
 
 from .models import (
     Course,
