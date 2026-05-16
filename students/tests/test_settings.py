@@ -1,5 +1,6 @@
-from django.test import TestCase, Client
 from django.contrib.auth import get_user_model
+from django.test import TestCase
+from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from students.models import Student, School, Grade
@@ -9,7 +10,7 @@ User = get_user_model()
 
 class StudentSettingsTest(TestCase):
     def setUp(self):
-        self.client = Client()
+        self.client = APIClient()
         self.school = School.objects.create(name="Test School")
         self.grade = Grade.objects.create(name="Grade 5", level=5)
 
