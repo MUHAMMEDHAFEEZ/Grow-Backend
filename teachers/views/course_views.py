@@ -106,7 +106,9 @@ def delete_course(request: Request, course_id: int) -> Response:
 @permission_classes([IsAuthenticated, IsTeacher])
 def list_lessons(request: Request, course_id: int) -> Response:
     lessons = get_course_lessons(course_id)
-    return Response(TeacherLessonSerializer(lessons, many=True).data)
+    return Response(
+        TeacherLessonSerializer(lessons, many=True, context={"request": request}).data,
+    )
 
 
 @extend_schema(
@@ -121,7 +123,10 @@ def create_lesson(request: Request, course_id: int) -> Response:
     serializer = TeacherLessonSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     lesson = create_teacher_lesson(teacher=request.user, course_id=course_id, **serializer.validated_data)
-    return Response(TeacherLessonSerializer(lesson).data, status=status.HTTP_201_CREATED)
+    return Response(
+        TeacherLessonSerializer(lesson, context={"request": request}).data,
+        status=status.HTTP_201_CREATED,
+    )
 
 
 @extend_schema(
@@ -135,7 +140,9 @@ def get_lesson_view(request: Request, lesson_id: int) -> Response:
     lesson = get_lesson(lesson_id)
     if not lesson or lesson.course.teacher_id != request.user.id:
         return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-    return Response(TeacherLessonSerializer(lesson).data)
+    return Response(
+        TeacherLessonSerializer(lesson, context={"request": request}).data,
+    )
 
 
 @extend_schema(
@@ -150,7 +157,9 @@ def update_lesson(request: Request, lesson_id: int) -> Response:
     serializer = TeacherLessonSerializer(data=request.data, partial=request.method == "PATCH")
     serializer.is_valid(raise_exception=True)
     lesson = update_teacher_lesson(teacher=request.user, lesson_id=lesson_id, **serializer.validated_data)
-    return Response(TeacherLessonSerializer(lesson).data)
+    return Response(
+        TeacherLessonSerializer(lesson, context={"request": request}).data,
+    )
 
 
 @extend_schema(
@@ -181,4 +190,6 @@ def reorder_lessons_view(request: Request, course_id: int) -> Response:
         course_id=course_id,
         ordered_ids=serializer.validated_data["ordered_ids"],
     )
-    return Response(TeacherLessonSerializer(lessons, many=True).data)
+    return Response(
+        TeacherLessonSerializer(lessons, many=True, context={"request": request}).data,
+    )
