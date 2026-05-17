@@ -108,6 +108,7 @@ def get_quiz_detail(quiz_id: int) -> Quiz | None:
 
 def get_quiz_results(quiz: Quiz) -> list[dict]:
     from courses.models import QuizAttempt
+    from xp.models import XPTransaction
 
     attempts = (
         QuizAttempt.objects.filter(quiz=quiz)
@@ -119,13 +120,19 @@ def get_quiz_results(quiz: Quiz) -> list[dict]:
         max_score = float(quiz.max_score)
         score = float(attempt.score)
         normalized = round((score / max_score) * 100, 2) if max_score > 0 else 0
+        xp_row = XPTransaction.objects.filter(
+            student=attempt.student,
+            source_type=XPTransaction.SourceType.QUIZ.value,
+            source_id=quiz.id,
+        ).first()
+        xp_earned = xp_row.xp_amount if xp_row else 0
         results.append({
             "student_id": attempt.student_id,
             "student_name": attempt.student.get_full_name() or attempt.student.username,
             "raw_score": attempt.score,
             "max_score": quiz.max_score,
             "normalized_score": normalized,
-            "xp_earned": 0,
+            "xp_earned": xp_earned,
             "status": "completed",
         })
     return results
