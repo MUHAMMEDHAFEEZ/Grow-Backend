@@ -18,6 +18,24 @@ class LessonSerializer(serializers.ModelSerializer):
         default=0,
         help_text="Display order within the course. Lower numbers appear first.",
     )
+    video_url = serializers.URLField(
+        required=False, allow_blank=True, help_text="External video URL."
+    )
+    video_file = serializers.FileField(
+        required=False, allow_null=True, help_text="Uploaded video file."
+    )
+    pdf_file = serializers.FileField(
+        required=False, allow_null=True, help_text="Uploaded PDF file."
+    )
+    resources = serializers.FileField(
+        required=False, allow_null=True, help_text="Additional resources file."
+    )
+    start_time = serializers.DateTimeField(
+        required=False, allow_null=True, help_text="Scheduled lesson start time."
+    )
+    end_time = serializers.DateTimeField(
+        required=False, allow_null=True, help_text="Scheduled lesson end time."
+    )
     xp_reward = serializers.IntegerField(read_only=True, help_text="XP reward for completing this lesson.")
     bonus_xp = serializers.IntegerField(read_only=True, help_text="Bonus XP for completing this lesson.")
     status = serializers.CharField(read_only=True, help_text="Lesson status: draft or published.")
@@ -27,7 +45,12 @@ class LessonSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Lesson
-        fields = ["id", "title", "content", "order", "xp_reward", "bonus_xp", "status", "created_at"]
+        fields = [
+            "id", "title", "content", "order",
+            "video_url", "video_file", "pdf_file", "resources",
+            "start_time", "end_time",
+            "xp_reward", "bonus_xp", "status", "created_at",
+        ]
         read_only_fields = ["id", "xp_reward", "bonus_xp", "status", "created_at"]
 
 
