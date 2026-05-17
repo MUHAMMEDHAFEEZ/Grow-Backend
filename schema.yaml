@@ -3584,6 +3584,24 @@ paths:
       responses:
         '204':
           description: Deleted.
+  /api/v1/teacher/assignments/{assignment_id}/results/:
+    get:
+      operationId: teacher_assignments_results_retrieve
+      summary: Assignment review panel
+      parameters:
+      - in: path
+        name: assignment_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Teacher Assignments
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Review summary + submissions.
   /api/v1/teacher/assignments/{assignment_id}/review/:
     get:
       operationId: teacher_assignments_review_retrieve

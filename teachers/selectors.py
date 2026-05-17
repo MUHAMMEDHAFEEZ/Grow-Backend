@@ -11,7 +11,6 @@ from courses.models import (
     Course,
     Lesson,
     Quiz,
-    QuizSubmission,
     StudentCourse,
 )
 from submissions.models import Submission
@@ -108,21 +107,26 @@ def get_quiz_detail(quiz_id: int) -> Quiz | None:
 
 
 def get_quiz_results(quiz: Quiz) -> list[dict]:
-    submissions = (
-        QuizSubmission.objects.filter(quiz=quiz)
+    from courses.models import QuizAttempt
+
+    attempts = (
+        QuizAttempt.objects.filter(quiz=quiz)
         .select_related("student")
         .order_by("-submitted_at")
     )
     results = []
-    for sub in submissions:
+    for attempt in attempts:
+        max_score = float(quiz.max_score)
+        score = float(attempt.score)
+        normalized = round((score / max_score) * 100, 2) if max_score > 0 else 0
         results.append({
-            "student_id": sub.student_id,
-            "student_name": sub.student.get_full_name() or sub.student.username,
-            "raw_score": sub.raw_score,
-            "max_score": sub.max_score,
-            "normalized_score": sub.normalized_score,
-            "xp_earned": sub.xp_earned,
-            "status": sub.status,
+            "student_id": attempt.student_id,
+            "student_name": attempt.student.get_full_name() or attempt.student.username,
+            "raw_score": attempt.score,
+            "max_score": quiz.max_score,
+            "normalized_score": normalized,
+            "xp_earned": 0,
+            "status": "completed",
         })
     return results
 
