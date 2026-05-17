@@ -5505,6 +5505,35 @@ components:
           type: integer
           default: 0
           description: Display order within the course. Lower numbers appear first.
+        video_url:
+          type: string
+          format: uri
+          description: External video URL.
+        video_file:
+          type: string
+          format: uri
+          nullable: true
+          description: Uploaded video file.
+        pdf_file:
+          type: string
+          format: uri
+          nullable: true
+          description: Uploaded PDF file.
+        resources:
+          type: string
+          format: uri
+          nullable: true
+          description: Additional resources file.
+        start_time:
+          type: string
+          format: date-time
+          nullable: true
+          description: Scheduled lesson start time.
+        end_time:
+          type: string
+          format: date-time
+          nullable: true
+          description: Scheduled lesson end time.
         xp_reward:
           type: integer
           readOnly: true
@@ -5608,6 +5637,35 @@ components:
           type: integer
           default: 0
           description: Display order within the course. Lower numbers appear first.
+        video_url:
+          type: string
+          format: uri
+          description: External video URL.
+        video_file:
+          type: string
+          format: binary
+          nullable: true
+          description: Uploaded video file.
+        pdf_file:
+          type: string
+          format: binary
+          nullable: true
+          description: Uploaded PDF file.
+        resources:
+          type: string
+          format: binary
+          nullable: true
+          description: Additional resources file.
+        start_time:
+          type: string
+          format: date-time
+          nullable: true
+          description: Scheduled lesson start time.
+        end_time:
+          type: string
+          format: date-time
+          nullable: true
+          description: Scheduled lesson end time.
       required:
       - content
       - title
