@@ -244,7 +244,7 @@ def get_courses_for_student(student, filter_status="all"):
 
 
 def get_course_detail(course_id, student):
-    from courses.models import Course, Lesson
+    from courses.models import Course, Lesson, QuizAttempt
     from quizzes.models import Quiz
     from assignments.models import Assignment
     from students.models import LessonCompletion
@@ -253,6 +253,12 @@ def get_course_detail(course_id, student):
     lessons = Lesson.objects.filter(course=course).order_by("order", "created_at")
     quizzes = Quiz.objects.filter(course=course)
     assignments = Assignment.objects.filter(course=course)
+
+    attempted_quiz_ids = set(
+        QuizAttempt.objects.filter(
+            student=student, quiz__in=quizzes
+        ).values_list("quiz_id", flat=True)
+    )
 
     lesson_data = []
     for lesson in lessons:
@@ -276,11 +282,19 @@ def get_course_detail(course_id, student):
     completed_lessons = sum(1 for _ in lesson_data if _["is_completed"])
     completion_pct = (completed_lessons / total_lessons * 100) if total_lessons > 0 else 0
 
+    quiz_data = []
+    for q in quizzes:
+        quiz_data.append({
+            "id": q.id,
+            "title": q.title,
+            "is_completed": q.id in attempted_quiz_ids,
+        })
+
     return {
         "course_name": course.title,
         "completion_percentage": round(completion_pct, 2),
         "lessons": lesson_data,
-        "quizzes": list(quizzes.values("id", "title")),
+        "quizzes": quiz_data,
         "assignments": list(assignments.values("id", "title", "due_date")),
     }
 

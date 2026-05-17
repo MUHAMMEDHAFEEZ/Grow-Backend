@@ -43,6 +43,7 @@ class SyllabusSerializer(serializers.Serializer):
 class QuizBriefSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     title = serializers.CharField()
+    is_completed = serializers.BooleanField()
 
 
 class AssignmentBriefSerializer(serializers.Serializer):
