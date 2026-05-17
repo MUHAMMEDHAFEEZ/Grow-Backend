@@ -6348,10 +6348,14 @@ components:
           type: string
           format: date-time
           readOnly: true
+        is_completed:
+          type: boolean
+          readOnly: true
       required:
       - course_id
       - created_at
       - id
+      - is_completed
       - is_locked
       - lesson_id
       - max_score

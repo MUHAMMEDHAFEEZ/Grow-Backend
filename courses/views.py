@@ -491,7 +491,7 @@ class QuizViewSet(viewsets.ViewSet):
             return Response(
                 {"error": "Not found."}, status=status.HTTP_404_NOT_FOUND
             )
-        return Response(QuizSerializer(quiz).data)
+        return Response(QuizSerializer(quiz, context={"request": request}).data)
 
     @extend_schema(
         tags=["Quizzes"],
@@ -513,7 +513,7 @@ class QuizViewSet(viewsets.ViewSet):
             max_score=serializer.validated_data["max_score"],
             lesson_id=serializer.validated_data.get("lesson_id"),
         )
-        return Response(QuizSerializer(quiz).data, status=status.HTTP_201_CREATED)
+        return Response(QuizSerializer(quiz, context={"request": request}).data, status=status.HTTP_201_CREATED)
 
     @extend_schema(
         tags=["Quizzes"],
@@ -532,7 +532,7 @@ class QuizViewSet(viewsets.ViewSet):
         course_id = request.query_params.get("course")
         if course_id:
             qs = qs.filter(course_id=course_id)
-        return Response(QuizSerializer(qs, many=True).data)
+        return Response(QuizSerializer(qs, many=True, context={"request": request}).data)
 
 
 class LessonActivityViewSet(viewsets.ViewSet):
