@@ -155,6 +155,8 @@ def signup_teacher(*, school_id: int, full_name: str, email: str, password: str,
         school=acc_school,
     )
     TeacherNotificationPreference.objects.create(teacher=user)
+    user.school = acc_school
+    user.save(update_fields=["school"])
 
     access_token = _create_access_token(user)
     refresh_token_str = _create_refresh_token(user, ip_address=ip_address)
