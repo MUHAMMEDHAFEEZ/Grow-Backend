@@ -6260,14 +6260,16 @@ components:
           type: integer
         text:
           type: string
+        order:
+          type: integer
         options:
           type: array
           items:
-            type: string
-          nullable: true
+            $ref: '#/components/schemas/StudentOption'
       required:
       - id
       - options
+      - order
       - text
     QuestionMap:
       type: object
@@ -7163,6 +7165,16 @@ components:
       - is_read
       - message
       - type
+    StudentOption:
+      type: object
+      properties:
+        id:
+          type: integer
+        text:
+          type: string
+      required:
+      - id
+      - text
     StudentProfile:
       type: object
       properties:
