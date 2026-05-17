@@ -6942,12 +6942,46 @@ components:
           type: integer
         title:
           type: string
+        content:
+          type: string
+        video_url:
+          type: string
+          format: uri
+        video_file:
+          type: string
+          format: uri
+          nullable: true
+        pdf_file:
+          type: string
+          format: uri
+          nullable: true
+        resources:
+          type: string
+          format: uri
+          nullable: true
+        xp_reward:
+          type: integer
+        bonus_xp:
+          type: integer
+        status:
+          type: string
+        order:
+          type: integer
         is_completed:
           type: boolean
       required:
+      - bonus_xp
+      - content
       - id
       - is_completed
+      - order
+      - pdf_file
+      - resources
+      - status
       - title
+      - video_file
+      - video_url
+      - xp_reward
     StudentList:
       type: object
       properties:

@@ -260,6 +260,15 @@ def get_course_detail(course_id, student):
         lesson_data.append({
             "id": lesson.id,
             "title": lesson.title,
+            "content": lesson.content,
+            "video_url": lesson.video_url,
+            "video_file": lesson.video_file.url if lesson.video_file else None,
+            "pdf_file": lesson.pdf_file.url if lesson.pdf_file else None,
+            "resources": lesson.resources.url if lesson.resources else None,
+            "xp_reward": lesson.xp_reward,
+            "bonus_xp": lesson.bonus_xp,
+            "status": lesson.status,
+            "order": lesson.order,
             "is_completed": is_completed,
         })
 

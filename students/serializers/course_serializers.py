@@ -13,12 +13,30 @@ class CourseListSerializer(serializers.Serializer):
 class LessonSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     title = serializers.CharField()
+    content = serializers.CharField(allow_blank=True)
+    video_url = serializers.URLField(allow_blank=True)
+    video_file = serializers.URLField(allow_null=True)
+    pdf_file = serializers.URLField(allow_null=True)
+    resources = serializers.URLField(allow_null=True)
+    xp_reward = serializers.IntegerField()
+    bonus_xp = serializers.IntegerField()
+    status = serializers.CharField()
+    order = serializers.IntegerField()
     is_completed = serializers.BooleanField()
 
 
 class SyllabusSerializer(serializers.Serializer):
     lesson_id = serializers.IntegerField()
     title = serializers.CharField()
+    content = serializers.CharField(allow_blank=True)
+    video_url = serializers.URLField(allow_blank=True)
+    video_file = serializers.URLField(allow_null=True)
+    pdf_file = serializers.URLField(allow_null=True)
+    resources = serializers.URLField(allow_null=True)
+    xp_reward = serializers.IntegerField()
+    bonus_xp = serializers.IntegerField()
+    status = serializers.CharField()
+    order = serializers.IntegerField()
     is_completed = serializers.BooleanField()
 
 
