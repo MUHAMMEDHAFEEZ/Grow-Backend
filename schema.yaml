@@ -5425,6 +5425,16 @@ components:
       - id
       - score
       - submission
+    GradeBrief:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+      required:
+      - id
+      - name
     GradeSubmissionRequest:
       type: object
       properties:
@@ -7627,8 +7637,9 @@ components:
         description:
           type: string
         grade:
-          type: integer
-          nullable: true
+          allOf:
+          - $ref: '#/components/schemas/GradeBrief'
+          readOnly: true
         is_published:
           type: boolean
         lesson_count:
@@ -7647,6 +7658,7 @@ components:
       required:
       - created_at
       - enrolled_students
+      - grade
       - id
       - lesson_count
       - title
