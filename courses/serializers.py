@@ -129,14 +129,22 @@ class CourseProgressSerializer(serializers.ModelSerializer):
 
 
 class QuizSerializer(serializers.ModelSerializer):
+    is_completed = serializers.SerializerMethodField()
+
     class Meta:
         model = Quiz
         fields = [
             "id", "course_id", "lesson_id", "teacher", "title", "max_score",
             "duration_minutes", "xp_reward", "start_time", "end_time", "is_locked",
-            "created_at",
+            "created_at", "is_completed",
         ]
-        read_only_fields = ["id", "teacher", "is_locked", "created_at"]
+        read_only_fields = ["id", "teacher", "is_locked", "created_at", "is_completed"]
+
+    def get_is_completed(self, obj: Quiz) -> bool:
+        request = self.context.get("request")
+        if request and request.user.is_authenticated and request.user.is_student:
+            return obj.attempts.filter(student=request.user).exists()
+        return False
 
 
 class QuizAttemptSerializer(serializers.ModelSerializer):
