@@ -86,10 +86,16 @@ class NotificationPreferenceSerializer(serializers.ModelSerializer):
         fields = ["email_notifications", "missing_assignments", "new_submissions"]
 
 
+class GradeBriefSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+
+
 class TeacherCourseListSerializer(serializers.ModelSerializer):
     lesson_count = serializers.SerializerMethodField()
     enrolled_students = serializers.SerializerMethodField()
     total_xp = serializers.SerializerMethodField()
+    grade = GradeBriefSerializer(read_only=True)
 
     class Meta:
         model = Course

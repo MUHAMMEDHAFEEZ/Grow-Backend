@@ -29,6 +29,7 @@ def get_teacher_profile(user: User) -> TeacherProfile | None:
 def get_teacher_courses(teacher: User) -> list[Course]:
     return (
         Course.objects.filter(teacher=teacher)
+        .select_related("grade")
         .annotate(
             _lesson_count=Count("lessons", distinct=True),
             _enrolled_count=Count("student_courses", distinct=True),
