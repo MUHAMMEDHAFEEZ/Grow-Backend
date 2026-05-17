@@ -78,8 +78,23 @@ def submit_quiz_view(request, quiz_id):
     )
     attempt_number = (last_attempt.attempt_number + 1) if last_attempt else 1
 
-    score = 0
+    questions = quiz.questions.prefetch_related("options").all()
+    correct_map = {}
+    for q in questions:
+        correct_map[q.id] = [
+            o.text for o in q.options.all() if o.is_correct
+        ]
+
+    answers = serializer.validated_data["answers"]
+    correct_count = 0
+    for ans in answers:
+        correct_texts = correct_map.get(ans["question_id"], [])
+        if ans["answer"] in correct_texts:
+            correct_count += 1
+
+    total = len(questions)
     max_score = float(quiz.max_score)
+    score = round((correct_count / total) * max_score, 2) if total > 0 else 0
     percentage = (score / max_score * 100) if max_score > 0 else 0
 
     QuizAttempt.objects.create(
@@ -91,7 +106,7 @@ def submit_quiz_view(request, quiz_id):
 
     xp_amount = 0
     if percentage >= 50:
-        xp_amount = 200
+        xp_amount = quiz.xp_reward or 0
         award_xp(request.user, "quiz", quiz_id, xp_amount)
 
     result = {
