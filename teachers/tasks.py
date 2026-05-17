@@ -54,17 +54,18 @@ def notify_students_new_lecture(lesson_id: int):
 def send_feedback_notification(submission_id: int):
     from submissions.models import Submission
     try:
-        submission = Submission.objects.select_related("student", "assignment", "assignment__course").get(pk=submission_id)
+        submission = Submission.objects.select_related("student", "assignment").get(pk=submission_id)
     except Submission.DoesNotExist:
         return
-    from notifications.models import Notification
-    Notification.objects.create(
-        recipient=submission.student,
-        title="Assignment Feedback Available",
-        body=f"Your submission for '{submission.assignment.title}' has been graded.",
-        event_type=Notification.EventType.SUBMISSION_GRADED,
-        related_course=submission.assignment.course,
-        related_content_id=submission.assignment.id,
+    from students.models import StudentNotification
+    StudentNotification.objects.get_or_create(
+        student=submission.student,
+        type=StudentNotification.Type.FEEDBACK_RECEIVED,
+        reference_id=submission.assignment.id,
+        defaults={
+            "reference_type": "assignment",
+            "message": f"Your submission for '{submission.assignment.title}' has been graded.",
+        },
     )
 
 

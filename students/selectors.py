@@ -325,6 +325,10 @@ def get_assignment_detail(assignment_id, student):
         "deadline": assignment.due_date,
         "teacher_file_url": None,
         "submission_status": submission.status if submission else "pending",
+        "is_graded": submission.is_graded if submission else False,
+        "score": submission.raw_score if submission and submission.is_graded else None,
+        "feedback": submission.feedback if submission and submission.is_graded else None,
+        "xp_awarded": submission.xp_awarded if submission and submission.is_graded else None,
     }
 
 
