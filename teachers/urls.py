@@ -42,6 +42,7 @@ urlpatterns = [
     path("assignments/<int:assignment_id>/update/", assignment_views.update_assignment, name="teacher-assignment-update"),
     path("assignments/<int:assignment_id>/delete/", assignment_views.delete_assignment, name="teacher-assignment-delete"),
     path("assignments/<int:assignment_id>/review/", assignment_views.review_panel, name="teacher-assignment-review"),
+    path("assignments/<int:assignment_id>/results/", assignment_views.review_panel, name="teacher-assignment-results"),
     path("submissions/<int:submission_id>/grade/", assignment_views.grade_submission_view, name="teacher-grade-submission"),
     # Quizzes
     path("quizzes/", quiz_views.list_quizzes, name="teacher-quiz-list"),

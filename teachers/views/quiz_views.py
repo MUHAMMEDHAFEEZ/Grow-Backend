@@ -81,12 +81,19 @@ def update_quiz(request: Request, quiz_id: int) -> Response:
 @api_view(["GET"])
 @permission_classes([IsAuthenticated, IsTeacher])
 def quiz_results(request: Request, quiz_id: int) -> Response:
+    from courses.models import StudentCourse
+
     quiz = get_quiz_detail(quiz_id)
     if not quiz or quiz.teacher_id != request.user.id:
         return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
     results = get_quiz_results(quiz)
     completed = sum(1 for r in results if r["status"] == "completed")
-    enrolled = get_teacher_quizzes(request.user).count()
+    enrolled = (
+        StudentCourse.objects.filter(course=quiz.course, is_active=True)
+        .values("student")
+        .distinct()
+        .count()
+    )
     return Response({
         "avg_score_pct": round(sum(r["normalized_score"] for r in results) / len(results), 2) if results else 0,
         "completion_rate": round((completed / enrolled) * 100, 2) if enrolled > 0 else 0,
