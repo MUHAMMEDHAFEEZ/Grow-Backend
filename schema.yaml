@@ -4819,11 +4819,28 @@ components:
           nullable: true
         submission_status:
           type: string
+        is_graded:
+          type: boolean
+        score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        feedback:
+          type: string
+          nullable: true
+        xp_awarded:
+          type: integer
+          nullable: true
       required:
       - deadline
+      - feedback
+      - is_graded
+      - score
       - submission_status
       - teacher_file_url
       - title
+      - xp_awarded
       - xp_reward
     AssignmentSubmitRequest:
       type: object
