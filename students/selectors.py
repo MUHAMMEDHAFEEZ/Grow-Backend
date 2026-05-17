@@ -334,19 +334,20 @@ def get_assignment_detail(assignment_id, student):
 
 def get_past_due_items(student):
     from assignments.models import Assignment
+    from courses.models import Quiz, QuizAttempt
 
     grade = getattr(getattr(student, 'student_profile', None), 'grade', None)
 
     now = timezone.now()
+
     assignments = Assignment.objects.filter(
         course__grade=grade,
         due_date__lt=now,
     ).exclude(
         submissions__student=student,
-        submissions__status="submitted",
     ).select_related("course")
 
-    return [
+    past_due = [
         {
             "id": a.id,
             "title": a.title,
@@ -356,9 +357,28 @@ def get_past_due_items(student):
         for a in assignments
     ]
 
+    attempted_quiz_ids = set(
+        QuizAttempt.objects.filter(student=student).values_list("quiz_id", flat=True)
+    )
+    quizzes = Quiz.objects.filter(
+        course__grade=grade,
+        end_time__lt=now,
+    ).exclude(id__in=attempted_quiz_ids)
+
+    for q in quizzes:
+        past_due.append({
+            "id": q.id,
+            "title": q.title,
+            "type": "quiz",
+            "deadline": q.end_time,
+        })
+
+    return past_due
+
 
 def get_todays_missions(student):
     from assignments.models import Assignment
+    from courses.models import Quiz, QuizAttempt
 
     grade = getattr(getattr(student, 'student_profile', None), 'grade', None)
 
@@ -379,9 +399,28 @@ def get_todays_missions(student):
             "id": a.id,
             "title": a.title,
             "type": "assignment",
-            "xp_reward": 50,
-            "is_completed": submission.status == "submitted" if submission else False,
+            "xp_reward": a.xp_reward or 50,
+            "is_completed": submission is not None,
         })
+
+    attempted_quiz_ids = set(
+        QuizAttempt.objects.filter(student=student).values_list("quiz_id", flat=True)
+    )
+    quizzes = Quiz.objects.filter(
+        course__grade=grade,
+        start_time__gte=today_start,
+        start_time__lt=today_end,
+    )
+
+    for q in quizzes:
+        result.append({
+            "id": q.id,
+            "title": q.title,
+            "type": "quiz",
+            "xp_reward": q.xp_reward or 50,
+            "is_completed": q.id in attempted_quiz_ids,
+        })
+
     return result
 
 
