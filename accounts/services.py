@@ -430,6 +430,10 @@ def use_enrollment_code(*, code_token: str, user: User) -> SchoolMembership:
                     full_name=user.email.split("@")[0],
                 )
 
+            # Link user to school
+            user.school = acc_school
+            user.save(update_fields=["school"])
+
             # Reset rate limit counters
             rate_limit.failed_attempts = 0
             rate_limit.locked_until    = None

@@ -116,6 +116,13 @@ def student_signup(school_id, full_name, email, password, student_code):
         student.class_fk = class_obj
         student.save(update_fields=["class_fk"])
 
+        # Link user to school
+        edu_school = code_obj.school
+        acc_school = getattr(edu_school, "accounts_school", None)
+        if acc_school:
+            user.school = acc_school
+            user.save(update_fields=["school"])
+
     refresh = RefreshToken.for_user(user)
     StudentSession.objects.create(student=user, is_active=True)
 
