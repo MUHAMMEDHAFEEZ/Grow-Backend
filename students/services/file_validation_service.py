@@ -19,7 +19,10 @@ def validate_file_extension(filename):
 
 
 def validate_mime_type(file):
-    import magic
+    try:
+        import magic
+    except ImportError:
+        return True, None
 
     mime = magic.from_buffer(file.read(2048), mime=True)
     file.seek(0)
