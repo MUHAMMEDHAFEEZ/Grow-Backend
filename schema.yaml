@@ -6386,8 +6386,11 @@ components:
           type: integer
         title:
           type: string
+        is_completed:
+          type: boolean
       required:
       - id
+      - is_completed
       - title
     QuizFeedbackRequest:
       type: object
