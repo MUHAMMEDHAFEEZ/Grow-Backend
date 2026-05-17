@@ -139,11 +139,14 @@ def get_quiz_results(quiz: Quiz) -> list[dict]:
 
 
 def get_dashboard_stats(teacher: User) -> dict:
+    from students.models import Student
+
     course_ids = Course.objects.filter(teacher=teacher).values_list("id", flat=True)
+    grade_ids = Course.objects.filter(teacher=teacher).values_list("grade_id", flat=True).distinct()
 
     total_students = (
-        StudentCourse.objects.filter(course_id__in=course_ids, is_active=True)
-        .values("student")
+        Student.objects.filter(grade_id__in=grade_ids)
+        .values("user_id")
         .distinct()
         .count()
     )
@@ -153,12 +156,12 @@ def get_dashboard_stats(teacher: User) -> dict:
     assignments_created = Assignment.objects.filter(course__teacher=teacher).count()
     active_quizzes = Quiz.objects.filter(
         teacher=teacher, is_locked=False,
-        start_time__lte=now, end_time__gte=now,
+        end_time__gte=now,
     ).count()
 
     enrolled_students = (
-        StudentCourse.objects.filter(course_id__in=course_ids, is_active=True)
-        .values_list("student_id", flat=True)
+        Student.objects.filter(grade_id__in=grade_ids)
+        .values_list("user_id", flat=True)
         .distinct()
     )[:20]
 
@@ -183,7 +186,7 @@ def get_dashboard_stats(teacher: User) -> dict:
         Submission.objects.filter(assignment__course_id__in=course_ids)
         .select_related("student", "assignment")
         .order_by("-submitted_at")[:10]
-        .values("student__username", "assignment__title", "status", "submitted_at")
+        .values("student__username", "assignment__title", "status", "raw_score", "submitted_at")
     )
 
     return {
