@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from django.contrib.auth import get_user_model
-from django.db.models import Avg, Count, Q, Sum, Value
+from django.db.models import Avg, Count, IntegerField, Q, Sum, Value
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
@@ -26,12 +26,23 @@ def get_teacher_profile(user: User) -> TeacherProfile | None:
 
 
 def get_teacher_courses(teacher: User) -> list[Course]:
+    from django.db.models import OuterRef, Subquery
+    from students.models import Student
+
+    enrolled_subquery = Subquery(
+        Student.objects.filter(grade=OuterRef("grade"))
+        .values("grade")
+        .annotate(cnt=Count("user_id", distinct=True))
+        .values("cnt"),
+        output_field=IntegerField(),
+    )
+
     return (
         Course.objects.filter(teacher=teacher)
         .select_related("grade")
         .annotate(
             _lesson_count=Count("lessons", distinct=True),
-            _enrolled_count=Count("student_courses", distinct=True),
+            _enrolled_count=Coalesce(enrolled_subquery, Value(0)),
             _total_xp=Coalesce(
                 Sum(
                     "lessons__xp_reward",
@@ -211,12 +222,15 @@ def _format_student_list(student_ids: list) -> list[dict]:
 
 
 def get_teacher_students(teacher: User, grade: int | None = None, search: str | None = None) -> list[dict]:
+    from students.models import Student
+
     course_ids = Course.objects.filter(teacher=teacher).values_list("id", flat=True)
-    student_ids = (
-        StudentCourse.objects.filter(course_id__in=course_ids, is_active=True)
-        .values_list("student_id", flat=True)
-        .distinct()
-    )
+    grade_ids = Course.objects.filter(teacher=teacher).values_list("grade_id", flat=True).distinct()
+    student_objs = Student.objects.filter(grade_id__in=grade_ids)
+    if grade:
+        student_objs = student_objs.filter(grade_id=grade)
+
+    student_ids = list(student_objs.values_list("user_id", flat=True).distinct())
     students = User.objects.filter(id__in=student_ids)
 
     if search:
