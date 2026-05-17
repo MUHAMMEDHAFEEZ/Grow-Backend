@@ -2,10 +2,16 @@ from drf_spectacular.utils import extend_schema_serializer
 from rest_framework import serializers
 
 
+class StudentOptionSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    text = serializers.CharField()
+
+
 class QuestionSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     text = serializers.CharField()
-    options = serializers.ListField(child=serializers.CharField(), allow_null=True)
+    order = serializers.IntegerField()
+    options = StudentOptionSerializer(many=True)
 
 
 class QuestionMapSerializer(serializers.Serializer):

@@ -9,6 +9,7 @@ from students.serializers.quiz_serializers import (
     QuizResultSerializer,
     QuizStartSerializer,
     QuizSubmitSerializer,
+    StudentOptionSerializer,
 )
 from students.services.xp_service import award_xp
 
@@ -24,16 +25,29 @@ from students.services.xp_service import award_xp
 @permission_classes([IsAuthenticated, IsStudent])
 def start_quiz_view(request, quiz_id):
     try:
-        quiz = Quiz.objects.get(id=quiz_id)
+        quiz = Quiz.objects.prefetch_related("questions__options").get(id=quiz_id)
     except Quiz.DoesNotExist:
         return Response({"error": "Quiz not found"}, status=404)
+
+    questions_qs = quiz.questions.all().order_by("order")
+    questions = []
+    question_map = []
+    for idx, q in enumerate(questions_qs, start=1):
+        options = StudentOptionSerializer(q.options.all(), many=True).data
+        questions.append({
+            "id": q.id,
+            "text": q.text,
+            "order": q.order,
+            "options": options,
+        })
+        question_map.append({"question_number": idx, "status": "unanswered"})
 
     data = {
         "quiz_id": quiz.id,
         "title": quiz.title,
-        "time_limit_seconds": None,
-        "questions": [],
-        "question_map": [],
+        "time_limit_seconds": quiz.duration_minutes * 60 if quiz.duration_minutes else None,
+        "questions": questions,
+        "question_map": question_map,
     }
     serializer = QuizStartSerializer(data)
     return Response(serializer.data)
