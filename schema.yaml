@@ -4755,6 +4755,11 @@ components:
           format: date-time
           readOnly: true
           description: Creation timestamp.
+        teacher_file:
+          type: string
+          format: uri
+          nullable: true
+          description: Assignment file uploaded by teacher.
       required:
       - course
       - created_at

@@ -22,14 +22,15 @@ class AssignmentSerializer(serializers.ModelSerializer):
     late_penalty_xp = serializers.IntegerField(read_only=True, help_text="XP deducted for late submissions.")
     max_score = serializers.DecimalField(max_digits=5, decimal_places=2, read_only=True, help_text="Maximum possible score.")
     created_at = serializers.DateTimeField(read_only=True, help_text="Creation timestamp.")
+    teacher_file = serializers.FileField(allow_null=True, required=False, help_text="Assignment file uploaded by teacher.")
 
     class Meta:
         model = Assignment
         fields = [
             "id", "course", "title", "description", "due_date", "created_by",
-            "xp_reward", "late_penalty_xp", "max_score", "created_at",
+            "xp_reward", "late_penalty_xp", "max_score", "created_at", "teacher_file",
         ]
-        read_only_fields = ["id", "course", "created_by", "xp_reward", "late_penalty_xp", "max_score", "created_at"]
+        read_only_fields = ["id", "course", "created_by", "xp_reward", "late_penalty_xp", "max_score", "created_at", "teacher_file"]
 
 
 class AssignmentWriteSerializer(serializers.ModelSerializer):
