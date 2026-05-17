@@ -1,7 +1,3 @@
-import os
-import uuid
-
-from django.conf import settings
 from django.utils import timezone
 
 from drf_spectacular.utils import extend_schema
@@ -60,26 +56,14 @@ def assignment_submit_view(request, assignment_id):
     if not is_valid:
         return Response({"error": error}, status=400)
 
-    ext = os.path.splitext(file.name)[1]
-    filename = f"{uuid.uuid4()}{ext}"
-    upload_dir = os.path.join(
-        settings.MEDIA_ROOT, "submissions", str(request.user.id), str(assignment_id)
-    )
-    os.makedirs(upload_dir, exist_ok=True)
-    filepath = os.path.join(upload_dir, filename)
-
-    with open(filepath, "wb+") as destination:
-        for chunk in file.chunks():
-            destination.write(chunk)
-
-    Submission.objects.update_or_create(
+    submission, created = Submission.objects.update_or_create(
         assignment=assignment,
         student=request.user,
         defaults={
-            "content": filepath,
+            "file": file,
             "status": Submission.Status.PENDING,
             "submitted_at": timezone.now(),
         },
     )
 
-    return Response({"message": "Assignment submitted successfully", "file": filename})
+    return Response({"message": "Assignment submitted successfully", "file": submission.file.name})
