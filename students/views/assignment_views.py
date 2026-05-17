@@ -1,5 +1,3 @@
-from django.utils import timezone
-
 from drf_spectacular.utils import extend_schema
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -62,7 +60,6 @@ def assignment_submit_view(request, assignment_id):
         defaults={
             "file": file,
             "status": Submission.Status.PENDING,
-            "submitted_at": timezone.now(),
         },
     )
 
