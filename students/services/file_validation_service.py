@@ -11,8 +11,8 @@ def validate_file_size(file):
     return True, None
 
 
-def validate_file_extension(filename):
-    ext = os.path.splitext(filename)[1].lower()
+def validate_file_extension(file):
+    ext = os.path.splitext(file.name)[1].lower()
     if ext not in ALLOWED_EXTENSIONS:
         return False, f"File type '{ext}' is not allowed."
     return True, None
