@@ -196,8 +196,12 @@ def login_teacher(*, school_id: int, email: str, password: str, ip_address: str 
         raise ValidationError("Invalid email or password.")
 
     profile = getattr(user, "teacher_profile", None)
-    if profile is None or profile.school.schools_school_id != school_id:
+    if profile is None:
         raise ValidationError("Invalid email or password.")
+
+    # Strict school isolation: teacher must belong to the selected school
+    if profile.school.schools_school_id != school_id:
+        raise ValidationError("You are not registered in this school.")
 
     if profile.status != TeacherProfile.Status.ACTIVE:
         raise PermissionDenied("Your account is not active.")
