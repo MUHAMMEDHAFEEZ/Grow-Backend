@@ -39,6 +39,11 @@ class RegisterSerializer(serializers.ModelSerializer):
                 "School admin accounts cannot be registered through this endpoint. "
                 "They are pre-seeded and managed separately."
             )
+        if value == User.Role.TEACHER:
+            raise serializers.ValidationError(
+                "Teacher accounts must be registered through the teacher signup endpoint "
+                "at /api/v1/teachers/auth/signup/ with a valid school registration code."
+            )
         return value
 
     def validate_email(self, value: str) -> str:
