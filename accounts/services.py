@@ -135,6 +135,13 @@ def login_user(*, email: str, password: str) -> dict:
     if user is None:
         raise ValidationError("Invalid credentials.")
 
+    # Teachers must use the school-specific login endpoint for school isolation
+    if user.role == User.Role.TEACHER:
+        raise ValidationError(
+            "Teacher accounts must log in through the teacher login endpoint "
+            "at /api/v1/teachers/auth/login/ with your school ID."
+        )
+
     refresh = RefreshToken.for_user(user)
     return {
         "access": str(refresh.access_token),
