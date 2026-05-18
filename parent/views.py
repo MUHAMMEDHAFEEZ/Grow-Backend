@@ -48,6 +48,10 @@ def _resolve_student_pk(student_code: str) -> int:
     try:
         return Student.objects.values_list("id", flat=True).get(student_id=student_code)
     except Student.DoesNotExist:
+        if student_code.isdigit():
+            pk = int(student_code)
+            if Student.objects.filter(id=pk).exists():
+                return pk
         raise NotFound("Student not found.")
 
 
