@@ -117,7 +117,7 @@ class ParentNotificationSerializer(serializers.Serializer):
 class ParentLinkSerializer(serializers.Serializer):
     school_id = serializers.IntegerField(required=True)
     full_name = serializers.CharField(required=True)
-    enrollment_code = serializers.CharField(required=True, write_only=True)
+    student_id = serializers.CharField(required=True)
     grade_id = serializers.IntegerField(required=True)
 
 

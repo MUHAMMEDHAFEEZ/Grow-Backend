@@ -6,21 +6,24 @@ from students.services import _check_rate_limit, _record_failed_attempt, _reset_
 
 
 @transaction.atomic
-def link_student_by_enrollment(*, parent, school_id, full_name, enrollment_code, grade_id):
+def link_student_by_id(*, parent, school_id, full_name, student_id, grade_id):
     _check_rate_limit(parent)
 
-    student = Student.objects.select_for_update().filter(
-        school_id=school_id,
-        full_name__iexact=full_name.strip(),
-        grade_id=grade_id,
-        parent_access_code__isnull=False,
-    ).first()
-
-    if not student:
+    try:
+        student = Student.objects.select_for_update().get(student_id=student_id)
+    except Student.DoesNotExist:
         _record_failed_attempt(parent)
         raise ValidationError("Information does not match any student.")
 
-    if student.parent_access_code.lower() != enrollment_code.strip().lower():
+    if student.school_id != school_id:
+        _record_failed_attempt(parent)
+        raise ValidationError("Information does not match any student.")
+
+    if student.grade_id != grade_id:
+        _record_failed_attempt(parent)
+        raise ValidationError("Information does not match any student.")
+
+    if student.full_name.strip().lower() != full_name.strip().lower():
         _record_failed_attempt(parent)
         raise ValidationError("Information does not match any student.")
 
@@ -30,7 +33,6 @@ def link_student_by_enrollment(*, parent, school_id, full_name, enrollment_code,
 
     _reset_attempts(parent)
     student.parent = parent
-    student.parent_access_code = None
-    student.save(update_fields=["parent", "parent_access_code"])
+    student.save(update_fields=["parent"])
 
     return student

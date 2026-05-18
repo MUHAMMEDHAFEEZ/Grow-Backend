@@ -2417,9 +2417,9 @@ paths:
   /api/v1/parent/add-student/:
     post:
       operationId: parent_add_student_create
-      description: 'Links an existing student to the authenticated parent using multi-field
-        verification: school, full name, enrollment code, and grade.'
-      summary: Link student with enrollment code
+      description: Links an existing student to the authenticated parent using school,
+        full name, student ID, and grade verification.
+      summary: Link student with student ID
       tags:
       - Parent
       requestBody:
@@ -6037,17 +6037,16 @@ components:
         full_name:
           type: string
           minLength: 1
-        enrollment_code:
+        student_id:
           type: string
-          writeOnly: true
           minLength: 1
         grade_id:
           type: integer
       required:
-      - enrollment_code
       - full_name
       - grade_id
       - school_id
+      - student_id
     ParentNotification:
       type: object
       properties:

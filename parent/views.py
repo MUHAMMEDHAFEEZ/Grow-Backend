@@ -15,7 +15,7 @@ from core.exceptions import Conflict, RateLimitExceeded, ValidationError
 from core.permissions import IsParent
 
 from students.models import Student
-from students.services.linking_service import link_student_by_enrollment
+from students.services.linking_service import link_student_by_id
 
 from . import services
 from .selectors import verify_parent_owns_student
@@ -113,10 +113,10 @@ def list_students(request: Request) -> Response:
 
 @extend_schema(
     tags=["Parent"],
-    summary="Link student with enrollment code",
+    summary="Link student with student ID",
     description=(
         "Links an existing student to the authenticated parent using "
-        "multi-field verification: school, full name, enrollment code, and grade."
+        "school, full name, student ID, and grade verification."
     ),
     request=ParentLinkSerializer,
     responses={
@@ -134,11 +134,11 @@ def add_student(request: Request) -> Response:
         return Response(serializer.errors, status=400)
 
     try:
-        student = link_student_by_enrollment(
+        student = link_student_by_id(
             parent=request.user,
             school_id=serializer.validated_data["school_id"],
             full_name=serializer.validated_data["full_name"],
-            enrollment_code=serializer.validated_data["enrollment_code"],
+            student_id=serializer.validated_data["student_id"],
             grade_id=serializer.validated_data["grade_id"],
         )
     except RateLimitExceeded as exc:
