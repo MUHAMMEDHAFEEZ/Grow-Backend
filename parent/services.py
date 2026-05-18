@@ -106,7 +106,10 @@ def _compute_subject_performance(student_id: int) -> list:
     
     course_grades = {}
     for sub in submissions:
-        course = sub.assignment.course
+        assignment = sub.assignment
+        if not assignment or not assignment.course:
+            continue
+        course = assignment.course
         course_id = course.id
         if course_id not in course_grades:
             course_grades[course_id] = {"name": course.title, "scores": []}
@@ -149,7 +152,7 @@ def _compute_recent_activity(student_id: int) -> list:
     for s in sessions:
         activities.append({
             "type": "study_session",
-            "title": f"Study session: {s.duration // 60} minutes",
+            "title": f"Study session: {(s.duration or 0) // 60} minutes",
             "timestamp": s.started_at.isoformat(),
         })
     
@@ -157,6 +160,8 @@ def _compute_recent_activity(student_id: int) -> list:
         student_id=student_id
     ).order_by("-submitted_at")[:3]
     for sub in submissions:
+        if not sub.assignment:
+            continue
         activities.append({
             "type": "submission",
             "title": f"Assignment submitted: {sub.assignment.title}",

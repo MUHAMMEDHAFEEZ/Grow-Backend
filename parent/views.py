@@ -77,31 +77,34 @@ class DashboardView(APIView):
         responses={200: DashboardSerializer},
     )
     def get(self, request: Request, student_code: str) -> Response:
-        student_id = _resolve_student_pk(student_code)
-        if not verify_parent_owns_student(request.user, student_id):
-            return Response(
-                {"error": "You can only view your child's dashboard."},
-                status=403,
+        try:
+            student_id = _resolve_student_pk(student_code)
+            if not verify_parent_owns_student(request.user, student_id):
+                return Response(
+                    {"error": "You can only view your child's dashboard."},
+                    status=403,
+                )
+
+            dashboard = services.get_parent_dashboard(
+                parent=request.user,
+                student_id=student_id,
             )
+            gpa = get_cumulative_gpa(student_id)
+            xp = get_total_xp(student_id)
+            upcoming = get_upcoming_schedule(student_id)
 
-        dashboard = services.get_parent_dashboard(
-            parent=request.user,
-            student_id=student_id,
-        )
-        gpa = get_cumulative_gpa(student_id)
-        xp = get_total_xp(student_id)
-        upcoming = get_upcoming_schedule(student_id)
-
-        result = {
-            "gpa": gpa,
-            "study_hours": dashboard["study_hours"],
-            "xp": xp,
-            "engagement": dashboard["engagement"],
-            "subject_performance": dashboard["subjects"],
-            "upcoming_schedule": upcoming,
-            "recent_activity": dashboard["recent_activity"],
-        }
-        return Response(DashboardSerializer(result).data)
+            result = {
+                "gpa": gpa,
+                "study_hours": dashboard["study_hours"],
+                "xp": xp,
+                "engagement": dashboard["engagement"],
+                "subject_performance": dashboard["subjects"],
+                "upcoming_schedule": upcoming,
+                "recent_activity": dashboard["recent_activity"],
+            }
+            return Response(DashboardSerializer(result).data)
+        except Exception as exc:
+            return Response({"error": str(exc)}, status=500)
 
 
 # ── Students List ───────────────────────────────────────────────────────────────
@@ -199,43 +202,46 @@ VALID_FILTERS = {"weekly", "monthly", "yearly"}
 @api_view(["GET"])
 @permission_classes([IsAuthenticated, IsParent])
 def analytics(request: Request, student_code: str) -> Response:
-    student_id = _resolve_student_pk(student_code)
-    if not verify_parent_owns_student(request.user, student_id):
-        return Response({"error": "You can only view your child's analytics."}, status=403)
+    try:
+        student_id = _resolve_student_pk(student_code)
+        if not verify_parent_owns_student(request.user, student_id):
+            return Response({"error": "You can only view your child's analytics."}, status=403)
 
-    period = request.query_params.get("filter", "monthly")
-    if period not in VALID_FILTERS:
-        return Response(
-            {"error": f"Invalid filter '{period}'. Must be one of: weekly, monthly, yearly."},
-            status=400,
-        )
+        period = request.query_params.get("filter", "monthly")
+        if period not in VALID_FILTERS:
+            return Response(
+                {"error": f"Invalid filter '{period}'. Must be one of: weekly, monthly, yearly."},
+                status=400,
+            )
 
-    now = timezone.now()
-    year = now.year
+        now = timezone.now()
+        year = now.year
 
-    monthly_gpas = get_monthly_gpas(student_id, year)
-    overall_academic_trend = [
-        {"period": f"Month {m['month']}", "average": m["average"]}
-        for m in monthly_gpas
-    ]
+        monthly_gpas = get_monthly_gpas(student_id, year)
+        overall_academic_trend = [
+            {"period": f"Month {m['month']}", "average": m["average"]}
+            for m in monthly_gpas
+        ]
 
-    dashboard = services._compute_dashboard(student_id)
-    study_hours_data = []
-    for month in range(1, now.month + 1):
-        xp_data = get_monthly_xp(student_id, year, month)
-        study_hours_data.append({
-            "period": f"Month {month}",
-            "hours": xp_data["total"] / 10.0,
-        })
+        dashboard = services._compute_dashboard(student_id)
+        study_hours_data = []
+        for month in range(1, now.month + 1):
+            xp_data = get_monthly_xp(student_id, year, month)
+            study_hours_data.append({
+                "period": f"Month {month}",
+                "hours": xp_data["total"] / 10.0,
+            })
 
-    return Response(AnalyticsSerializer({
-        "overall_academic_trend": overall_academic_trend,
-        "study_hours": study_hours_data,
-        "subject_breakdown": [
-            {"name": s["name"], "average": s["average"], "grade": s["grade"]}
-            for s in dashboard["subjects"]
-        ],
-    }).data)
+        return Response(AnalyticsSerializer({
+            "overall_academic_trend": overall_academic_trend,
+            "study_hours": study_hours_data,
+            "subject_breakdown": [
+                {"name": s["name"], "average": s["average"], "grade": s["grade"]}
+                for s in dashboard["subjects"]
+            ],
+        }).data)
+    except Exception as exc:
+        return Response({"error": str(exc)}, status=500)
 
 
 # ── Attendance ──────────────────────────────────────────────────────────────────
