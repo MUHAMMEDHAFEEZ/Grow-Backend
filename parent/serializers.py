@@ -9,8 +9,12 @@ class ParentGPASerializer(serializers.Serializer):
 
 class StudyHoursSerializer(serializers.Serializer):
     total = serializers.FloatField()
-    weekly = serializers.FloatField()
-    progress = serializers.IntegerField()
+    change = serializers.FloatField()
+
+
+class XPSerializer(serializers.Serializer):
+    total = serializers.IntegerField()
+    change = serializers.FloatField()
 
 
 class SubjectPerformanceSerializer(serializers.Serializer):
@@ -33,10 +37,27 @@ class RecentActivitySerializer(serializers.Serializer):
     timestamp = serializers.CharField()
 
 
+class MonthlyTrendSerializer(serializers.Serializer):
+    period = serializers.CharField()
+    average = serializers.FloatField()
+
+
+class WeeklyTrendSerializer(serializers.Serializer):
+    period = serializers.CharField()
+    average = serializers.FloatField()
+
+
+class AcademicTrendSerializer(serializers.Serializer):
+    average = serializers.FloatField()
+    change = serializers.FloatField()
+    monthly = MonthlyTrendSerializer(many=True)
+    weekly = WeeklyTrendSerializer(many=True)
+
+
 class DashboardSerializer(serializers.Serializer):
     gpa = ParentGPASerializer()
     study_hours = StudyHoursSerializer()
-    xp = serializers.DictField()
+    xp = XPSerializer()
     engagement = serializers.IntegerField()
     subject_performance = SubjectPerformanceSerializer(many=True)
     upcoming_schedule = UpcomingItemSerializer(many=True)
@@ -68,7 +89,7 @@ class SubjectBreakdownSerializer(serializers.Serializer):
 
 
 class AnalyticsSerializer(serializers.Serializer):
-    overall_academic_trend = TrendPointSerializer(many=True)
+    overall_academic_trend = AcademicTrendSerializer()
     study_hours = StudyHoursPointSerializer(many=True)
     subject_breakdown = SubjectBreakdownSerializer(many=True)
 

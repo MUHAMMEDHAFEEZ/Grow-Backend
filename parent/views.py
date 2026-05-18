@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.http import HttpResponse
 from django.utils import timezone
 
@@ -224,10 +226,38 @@ def analytics(request: Request, student_code: str) -> Response:
         year = now.year
 
         monthly_gpas = get_monthly_gpas(student_id, year)
-        overall_academic_trend = [
+        monthly = [
             {"period": f"Month {m['month']}", "average": m["average"]}
             for m in monthly_gpas
         ]
+
+        from django.db.models import Avg
+        from grades.models import Grade
+        all_grades = Grade.objects.filter(
+            submission__student_id=student_id,
+            submission__status="graded",
+        )
+        overall_avg = all_grades.aggregate(avg=Avg("score"))["avg"] or 0.0
+
+        thirty_days_ago = timezone.now() - timedelta(days=30)
+        past_avg = all_grades.filter(
+            graded_at__lt=thirty_days_ago,
+        ).aggregate(avg=Avg("score"))["avg"] or 0.0
+        change = round(float(overall_avg) - float(past_avg), 1)
+
+        weekly = []
+        for w in range(4):
+            week_start = timezone.now() - timedelta(days=(w + 1) * 7)
+            week_end = timezone.now() - timedelta(days=w * 7)
+            week_grades = all_grades.filter(
+                graded_at__gte=week_start,
+                graded_at__lt=week_end,
+            )
+            week_avg = week_grades.aggregate(avg=Avg("score"))["avg"] or 0.0
+            weekly.append({
+                "period": f"Week {4 - w}",
+                "average": round(float(week_avg), 1),
+            })
 
         dashboard = services._compute_dashboard(student_id)
         study_hours_data = []
@@ -238,13 +268,37 @@ def analytics(request: Request, student_code: str) -> Response:
                 "hours": xp_data["total"] / 10.0,
             })
 
+        from courses.models import Course
+        from students.models import Student as StudentProfile
+        profile = StudentProfile.objects.filter(user_id=student_id).first()
+        all_courses = Course.objects.none()
+        if profile and profile.school_id:
+            all_courses = Course.objects.filter(
+                school_id=profile.school_id,
+                grade_id=profile.grade_id,
+            )
+
+        subject_breakdown = []
+        subject_map = {s["name"]: s for s in dashboard["subjects"]}
+        for course in all_courses:
+            if course.title in subject_map:
+                subject_breakdown.append(subject_map[course.title])
+            else:
+                subject_breakdown.append({
+                    "name": course.title,
+                    "average": 0.0,
+                    "grade": "N/A",
+                })
+
         return Response(AnalyticsSerializer({
-            "overall_academic_trend": overall_academic_trend,
+            "overall_academic_trend": {
+                "average": round(float(overall_avg), 1),
+                "change": change,
+                "monthly": monthly,
+                "weekly": weekly,
+            },
             "study_hours": study_hours_data,
-            "subject_breakdown": [
-                {"name": s["name"], "average": s["average"], "grade": s["grade"]}
-                for s in dashboard["subjects"]
-            ],
+            "subject_breakdown": subject_breakdown,
         }).data)
     except Exception as exc:
         return Response({"error": str(exc)}, status=500)
