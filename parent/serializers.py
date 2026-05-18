@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 
@@ -130,10 +131,16 @@ class LinkedStudentSerializer(serializers.Serializer):
 
 
 class SettingsSerializer(serializers.Serializer):
-    full_name = serializers.CharField(source="user.username")
+    full_name = serializers.SerializerMethodField()
     email = serializers.EmailField(source="user.email", read_only=True)
     notifications_enabled = serializers.BooleanField(source="user.notifications_enabled")
     linked_students = LinkedStudentSerializer(many=True, read_only=True)
 
-    class Meta:
-        fields = ["full_name", "email", "notifications_enabled", "linked_students"]
+    @extend_schema_field(serializers.CharField())
+    def get_full_name(self, obj):
+        user = obj.get("user")
+        if user:
+            first = user.first_name or ""
+            last = user.last_name or ""
+            return f"{first} {last}".strip() or user.username
+        return ""

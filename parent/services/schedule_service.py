@@ -9,8 +9,8 @@ def get_upcoming_schedule(student_id: int) -> list:
     items = []
 
     quizzes = Quiz.objects.filter(
-        course__studentcourse__student_id=student_id,
-        course__studentcourse__is_active=True,
+        course__student_courses__student_id=student_id,
+        course__student_courses__is_active=True,
     ).distinct()
     for q in quizzes:
         items.append({
@@ -22,8 +22,8 @@ def get_upcoming_schedule(student_id: int) -> list:
         })
 
     assignments = Assignment.objects.filter(
-        course__studentcourse__student_id=student_id,
-        course__studentcourse__is_active=True,
+        course__student_courses__student_id=student_id,
+        course__student_courses__is_active=True,
         due_date__gte=now,
     ).distinct()
     for a in assignments:

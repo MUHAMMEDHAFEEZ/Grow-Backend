@@ -33,9 +33,14 @@ def get_monthly_report(student_id: int, year_month: str) -> dict:
     )
     overall_avg = grades_qs.aggregate(avg=Avg("score"))["avg"] or 0.0
 
-    submissions_qs = Submission.objects.filter(student_id=student_id)
-    total_assignments = submissions_qs.count()
-    submitted = submissions_qs.filter(
+    from assignments.models import Assignment
+    total_assignments = Assignment.objects.filter(
+        course__student_courses__student_id=student_id,
+        due_date__year=year,
+        due_date__month=month,
+    ).distinct().count()
+    submitted = Submission.objects.filter(
+        student_id=student_id,
         submitted_at__year=year,
         submitted_at__month=month,
     ).count()
