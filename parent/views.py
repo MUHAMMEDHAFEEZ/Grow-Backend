@@ -93,7 +93,7 @@ class DashboardView(APIView):
 
             dashboard = services.get_parent_dashboard(
                 parent=request.user,
-                student_id=student_id,
+                user_id=student_id,
             )
             gpa = get_cumulative_gpa(student_id)
             xp = get_total_xp(student_id)
