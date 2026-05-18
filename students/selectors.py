@@ -41,18 +41,15 @@ def get_student_streak(student):
     now = timezone.now()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
-    xp_dates = XPTransaction.objects.filter(
+    xp_dates = list(XPTransaction.objects.filter(
         student=student
-    ).dates('created_at', 'day').distinct()
+    ).dates('created_at', 'day').distinct())
 
-    session_dates = StudySession.objects.filter(
+    session_dates = list(StudySession.objects.filter(
         student=student
-    ).dates('started_at', 'day').distinct()
+    ).dates('started_at', 'day').distinct())
 
-    all_activity_dates = set(
-        list(xp_dates.values_list('created_at', flat=True)) +
-        list(session_dates.values_list('started_at', flat=True))
-    )
+    all_activity_dates = set(xp_dates + session_dates)
 
     if not all_activity_dates:
         return 0
@@ -69,11 +66,11 @@ def get_student_streak(student):
             return 0
 
     current_date = check_date
-    for date in sorted_dates:
-        if date == current_date:
+    for d in sorted_dates:
+        if d == current_date:
             streak += 1
             current_date -= timezone.timedelta(days=1)
-        elif date < current_date:
+        elif d < current_date:
             break
 
     return streak

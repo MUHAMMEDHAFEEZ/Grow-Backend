@@ -21,10 +21,17 @@ def award_xp(student, source_type, source_id, amount):
     if existing:
         return None
 
+    source_map = {
+        "lesson": XPTransaction.Source.STUDY.value,
+        "quiz": XPTransaction.Source.QUIZ.value,
+        "assignment": XPTransaction.Source.ASSIGNMENT.value,
+        "task": XPTransaction.Source.STUDY.value,
+        "streak": XPTransaction.Source.ATTENDANCE.value,
+    }
     return XPTransaction.objects.create(
         student=student,
         xp_amount=amount,
-        source=source_type,
+        source=source_map.get(source_type, XPTransaction.Source.STUDY.value),
         source_type=source_type,
         source_id=source_id,
     )

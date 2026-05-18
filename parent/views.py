@@ -11,12 +11,11 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from core.exceptions import Conflict, NotFound, RateLimitExceeded, ValidationError
+from core.exceptions import Conflict, RateLimitExceeded, ValidationError
 from core.permissions import IsParent
 
 from students.models import Student
-from students.serializers import AddStudentSerializer
-from students.services import link_student_to_parent
+from students.services.linking_service import link_student_by_enrollment
 
 from . import services
 from .selectors import verify_parent_owns_student
@@ -24,6 +23,7 @@ from .serializers import (
     AnalyticsSerializer,
     AttendanceSerializer,
     DashboardSerializer,
+    ParentLinkSerializer,
     ParentNotificationSerializer,
     ReportSerializer,
     SettingsSerializer,
@@ -113,16 +113,15 @@ def list_students(request: Request) -> Response:
 
 @extend_schema(
     tags=["Parent"],
-    summary="Add student with verification code",
+    summary="Link student with enrollment code",
     description=(
         "Links an existing student to the authenticated parent using "
-        "the student's ID and parent_access_code."
+        "multi-field verification: school, full name, enrollment code, and grade."
     ),
-    request=AddStudentSerializer,
+    request=ParentLinkSerializer,
     responses={
         200: {"description": "Student linked successfully."},
-        400: {"description": "Invalid access code or bad request."},
-        404: {"description": "Student not found."},
+        400: {"description": "Information does not match any student."},
         409: {"description": "Student already linked to another parent."},
         429: {"description": "Too many failed attempts. Rate limited."},
     },
@@ -130,24 +129,24 @@ def list_students(request: Request) -> Response:
 @api_view(["POST"])
 @permission_classes([IsAuthenticated, IsParent])
 def add_student(request: Request) -> Response:
-    serializer = AddStudentSerializer(data=request.data)
+    serializer = ParentLinkSerializer(data=request.data)
     if not serializer.is_valid():
         return Response(serializer.errors, status=400)
 
     try:
-        student = link_student_to_parent(
+        student = link_student_by_enrollment(
             parent=request.user,
-            student_id=serializer.validated_data["student_id"],
-            parent_access_code=serializer.validated_data["parent_access_code"],
+            school_id=serializer.validated_data["school_id"],
+            full_name=serializer.validated_data["full_name"],
+            enrollment_code=serializer.validated_data["enrollment_code"],
+            grade_id=serializer.validated_data["grade_id"],
         )
     except RateLimitExceeded as exc:
         return Response({"error": exc.detail}, status=429)
-    except NotFound as exc:
-        return Response({"error": exc.detail}, status=404)
     except Conflict as exc:
         return Response({"error": exc.detail}, status=409)
     except ValidationError as exc:
-        return Response({"error": exc.detail}, status=400)
+        return Response({"error": str(exc.detail)}, status=400)
 
     return Response({
         "message": "Student linked successfully",
@@ -440,12 +439,20 @@ class SettingsView(APIView):
         notifications_enabled = request.data.get("notifications_enabled")
 
         if full_name is not None:
-            user.username = full_name
+            parts = full_name.split()
+            if parts:
+                user.first_name = parts[0]
+                user.last_name = " ".join(parts[1:]) if len(parts) > 1 else ""
         if notifications_enabled is not None:
             user.notifications_enabled = bool(notifications_enabled)
 
-        if full_name is not None or notifications_enabled is not None:
-            user.save(update_fields=["username", "notifications_enabled"])
+        update_fields = []
+        if full_name is not None:
+            update_fields.extend(["first_name", "last_name"])
+        if notifications_enabled is not None:
+            update_fields.append("notifications_enabled")
+        if update_fields:
+            user.save(update_fields=update_fields)
 
         students = Student.objects.filter(parent=request.user).select_related(
             "grade", "school"

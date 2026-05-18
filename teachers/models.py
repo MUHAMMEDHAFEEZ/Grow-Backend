@@ -116,6 +116,7 @@ class RefreshToken(models.Model):
 class OTPRecord(models.Model):
     email = models.EmailField()
     otp_hash = models.CharField(max_length=128)
+    reset_token_hash = models.CharField(max_length=128, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField()
     is_used = models.BooleanField(default=False)

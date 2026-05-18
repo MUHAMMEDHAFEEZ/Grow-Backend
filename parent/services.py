@@ -72,7 +72,7 @@ def _compute_engagement(student_id: int) -> int:
     
     attendance_records = AttendanceRecord.objects.filter(student_id=student_id)
     total_attendance = attendance_records.count()
-    present_count = attendance_records.filter(present=True).count()
+    present_count = attendance_records.filter(status__in=["present", "late"]).count()
     attendance_rate = (present_count / total_attendance * 100) if total_attendance > 0 else 0
     
     enrollments = StudentCourse.objects.filter(student_id=student_id)
@@ -110,8 +110,8 @@ def _compute_subject_performance(student_id: int) -> list:
         course_id = course.id
         if course_id not in course_grades:
             course_grades[course_id] = {"name": course.title, "scores": []}
-        if sub.grade:
-            course_grades[course_id]["scores"].append(float(sub.grade.score))
+        if sub.raw_score is not None:
+            course_grades[course_id]["scores"].append(float(sub.raw_score))
     
     subjects = []
     for course_id, data in course_grades.items():
