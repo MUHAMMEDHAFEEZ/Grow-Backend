@@ -422,7 +422,7 @@ def get_todays_missions(student):
 
 
 def get_student_settings(student):
-    from courses.models import StudentCourse
+    from courses.models import Course
 
     profile = getattr(student, 'student_profile', None)
 
@@ -430,7 +430,13 @@ def get_student_settings(student):
         total=Coalesce(Sum("xp_amount"), 0)
     )["total"] or 0
 
-    courses_count = StudentCourse.objects.filter(student=student).count()
+    courses_count = 0
+    if profile and profile.school and profile.grade:
+        courses_count = Course.objects.filter(
+            school=profile.school,
+            grade__level=profile.grade.level,
+            is_published=True,
+        ).count()
 
     return {
         "full_name": profile.full_name if profile else None,
