@@ -11,7 +11,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from core.exceptions import Conflict, RateLimitExceeded, ValidationError
+from core.exceptions import Conflict, NotFound, RateLimitExceeded, ValidationError
 from core.permissions import IsParent
 
 from students.models import Student
@@ -44,6 +44,13 @@ from .services.schedule_service import get_upcoming_schedule
 from .services.xp_service import get_monthly_xp, get_total_xp
 
 
+def _resolve_student_pk(student_code: str) -> int:
+    try:
+        return Student.objects.values_list("id", flat=True).get(student_id=student_code)
+    except Student.DoesNotExist:
+        raise NotFound("Student not found.")
+
+
 class DashboardView(APIView):
     permission_classes = [IsAuthenticated, IsParent]
 
@@ -56,16 +63,17 @@ class DashboardView(APIView):
         ),
         parameters=[
             OpenApiParameter(
-                name="student_id",
-                type=int,
+                name="student_code",
+                type=str,
                 location=OpenApiParameter.PATH,
-                description="ID of the student to view dashboard for.",
+                description="Student code (e.g. STU-2024-G7-621).",
                 required=True,
             ),
         ],
         responses={200: DashboardSerializer},
     )
-    def get(self, request: Request, student_id: int) -> Response:
+    def get(self, request: Request, student_code: str) -> Response:
+        student_id = _resolve_student_pk(student_code)
         if not verify_parent_owns_student(request.user, student_id):
             return Response(
                 {"error": "You can only view your child's dashboard."},
@@ -169,8 +177,8 @@ VALID_FILTERS = {"weekly", "monthly", "yearly"}
     ),
     parameters=[
         OpenApiParameter(
-            name="student_id",
-            type=int,
+            name="student_code",
+            type=str,
             location=OpenApiParameter.PATH,
             required=True,
         ),
@@ -186,7 +194,8 @@ VALID_FILTERS = {"weekly", "monthly", "yearly"}
 )
 @api_view(["GET"])
 @permission_classes([IsAuthenticated, IsParent])
-def analytics(request: Request, student_id: int) -> Response:
+def analytics(request: Request, student_code: str) -> Response:
+    student_id = _resolve_student_pk(student_code)
     if not verify_parent_owns_student(request.user, student_id):
         return Response({"error": "You can only view your child's analytics."}, status=403)
 
@@ -236,8 +245,8 @@ def analytics(request: Request, student_id: int) -> Response:
     ),
     parameters=[
         OpenApiParameter(
-            name="student_id",
-            type=int,
+            name="student_code",
+            type=str,
             location=OpenApiParameter.PATH,
             required=True,
         ),
@@ -246,7 +255,8 @@ def analytics(request: Request, student_id: int) -> Response:
 )
 @api_view(["GET"])
 @permission_classes([IsAuthenticated, IsParent])
-def attendance(request: Request, student_id: int) -> Response:
+def attendance(request: Request, student_code: str) -> Response:
+    student_id = _resolve_student_pk(student_code)
     if not verify_parent_owns_student(request.user, student_id):
         return Response({"error": "You can only view your child's attendance."}, status=403)
 
@@ -268,8 +278,8 @@ def attendance(request: Request, student_id: int) -> Response:
     description="Returns a monthly performance report for the specified student.",
     parameters=[
         OpenApiParameter(
-            name="student_id",
-            type=int,
+            name="student_code",
+            type=str,
             location=OpenApiParameter.PATH,
             required=True,
         ),
@@ -285,7 +295,8 @@ def attendance(request: Request, student_id: int) -> Response:
 )
 @api_view(["GET"])
 @permission_classes([IsAuthenticated, IsParent])
-def report(request: Request, student_id: int) -> Response:
+def report(request: Request, student_code: str) -> Response:
+    student_id = _resolve_student_pk(student_code)
     if not verify_parent_owns_student(request.user, student_id):
         return Response({"error": "You can only view your child's report."}, status=403)
 
@@ -307,8 +318,8 @@ def report(request: Request, student_id: int) -> Response:
     description="Returns a PDF version of the monthly report.",
     parameters=[
         OpenApiParameter(
-            name="student_id",
-            type=int,
+            name="student_code",
+            type=str,
             location=OpenApiParameter.PATH,
             required=True,
         ),
@@ -324,7 +335,8 @@ def report(request: Request, student_id: int) -> Response:
 )
 @api_view(["GET"])
 @permission_classes([IsAuthenticated, IsParent])
-def report_print(request: Request, student_id: int) -> Response:
+def report_print(request: Request, student_code: str) -> Response:
+    student_id = _resolve_student_pk(student_code)
     if not verify_parent_owns_student(request.user, student_id):
         return Response({"error": "You can only view your child's report."}, status=403)
 
