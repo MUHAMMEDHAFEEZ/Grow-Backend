@@ -2417,22 +2417,22 @@ paths:
   /api/v1/parent/add-student/:
     post:
       operationId: parent_add_student_create
-      description: Links an existing student to the authenticated parent using the
-        student's ID and parent_access_code.
-      summary: Add student with verification code
+      description: 'Links an existing student to the authenticated parent using multi-field
+        verification: school, full name, enrollment code, and grade.'
+      summary: Link student with enrollment code
       tags:
       - Parent
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AddStudentRequest'
+              $ref: '#/components/schemas/ParentLinkRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/AddStudentRequest'
+              $ref: '#/components/schemas/ParentLinkRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/AddStudentRequest'
+              $ref: '#/components/schemas/ParentLinkRequest'
         required: true
       security:
       - jwtAuth: []
@@ -2448,13 +2448,7 @@ paths:
           content:
             application/json:
               schema:
-                description: Invalid access code or bad request.
-          description: ''
-        '404':
-          content:
-            application/json:
-              schema:
-                description: Student not found.
+                description: Information does not match any student.
           description: ''
         '409':
           content:
@@ -4685,19 +4679,6 @@ paths:
           description: ''
 components:
   schemas:
-    AddStudentRequest:
-      type: object
-      properties:
-        student_id:
-          type: string
-          minLength: 1
-        parent_access_code:
-          type: string
-          writeOnly: true
-          minLength: 1
-      required:
-      - parent_access_code
-      - student_id
     Analytics:
       type: object
       properties:
@@ -6048,6 +6029,25 @@ components:
       required:
       - change
       - value
+    ParentLinkRequest:
+      type: object
+      properties:
+        school_id:
+          type: integer
+        full_name:
+          type: string
+          minLength: 1
+        enrollment_code:
+          type: string
+          writeOnly: true
+          minLength: 1
+        grade_id:
+          type: integer
+      required:
+      - enrollment_code
+      - full_name
+      - grade_id
+      - school_id
     ParentNotification:
       type: object
       properties:
