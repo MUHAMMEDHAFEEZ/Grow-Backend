@@ -4,12 +4,12 @@ from django.utils import timezone
 from datetime import timedelta
 
 
-def get_student_courses(student):
+def get_student_courses(user):
     """Get student's enrolled courses."""
     from courses.models import StudentCourse
 
     enrollments = StudentCourse.objects.filter(
-        student=student
+        student=user
     ).select_related('course', 'course__grade')
 
     courses = []
@@ -22,30 +22,38 @@ def get_student_courses(student):
     return courses
 
 
-def get_student_grades(student):
+def get_student_grades(user):
     """Get student's grades across all courses."""
     from grades.models import Grade
 
     grades = Grade.objects.filter(
-        student=student
-    ).select_related('course').order_by('-created_at')[:10]
+        submission__student=user
+    ).select_related('submission__assignment__course').order_by('-graded_at')[:10]
 
-    return list(grades.values('id', 'course__name', 'score', 'created_at'))
+    results = []
+    for g in grades:
+        results.append({
+            'id': g.id,
+            'course__name': g.submission.assignment.course.name if g.submission.assignment.course else None,
+            'score': g.score,
+            'created_at': g.graded_at,
+        })
+    return results
 
 
-def get_student_assignments(student):
+def get_student_assignments(user):
     """Get student's assignments and submission status."""
     from assignments.models import Assignment
     from submissions.models import Submission
 
     assignments = Assignment.objects.filter(
-        course__enrollments__student=student
+        course__student_courses__student=user
     ).select_related('course')
 
     results = []
     for assignment in assignments:
         submission = Submission.objects.filter(
-            student=student,
+            student=user,
             assignment=assignment
         ).first()
 
@@ -60,7 +68,7 @@ def get_student_assignments(student):
     return results
 
 
-def get_student_sessions(student):
+def get_student_sessions(user):
     """Get student's study sessions."""
     from study_sessions.models import StudySession
 
@@ -69,7 +77,7 @@ def get_student_sessions(student):
     week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
 
     sessions = StudySession.objects.filter(
-        student=student,
+        student=user,
         started_at__gte=week_start
     )
 
@@ -83,7 +91,7 @@ def get_student_sessions(student):
     }
 
 
-def get_student_attendance(student):
+def get_student_attendance(user):
     """Get student's attendance rate."""
     from attendance.models import AttendanceRecord
 
@@ -91,7 +99,7 @@ def get_student_attendance(student):
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
     records = AttendanceRecord.objects.filter(
-        student=student,
+        student=user,
         date__gte=month_start
     )
 
@@ -105,22 +113,22 @@ def get_student_attendance(student):
     return {'rate': rate, 'present': present, 'total': total}
 
 
-def get_student_xp(student):
+def get_student_xp(user):
     """Get student's total XP."""
     from xp.models import XPTransaction
 
     total_xp = XPTransaction.objects.filter(
-        student=student
+        student=user
     ).aggregate(total=Coalesce(Sum('xp_amount'), 0))['total'] or 0
 
     return {'total_xp': total_xp}
 
 
-def compute_gpa(student):
+def compute_gpa(user):
     """Calculate student's GPA from grades."""
     from grades.models import Grade
 
-    grades = Grade.objects.filter(student=student)
+    grades = Grade.objects.filter(submission__student=user)
 
     if not grades.exists():
         return 0
@@ -129,17 +137,18 @@ def compute_gpa(student):
     return round(avg_score, 1)
 
 
-def identify_weak_subjects(student):
+def identify_weak_subjects(user):
     """Identify subjects where student is struggling (score < 70)."""
     from grades.models import Grade
 
     weak_grades = Grade.objects.filter(
-        student=student,
+        submission__student=user,
         score__lt=70
-    ).select_related('course')
+    ).select_related('submission__assignment__course')
 
     weak_subjects = []
     for grade in weak_grades:
-        if grade.course:
-            weak_subjects.append(grade.course.name)
+        course = grade.submission.assignment.course
+        if course:
+            weak_subjects.append(course.name)
     return list(set(weak_subjects))

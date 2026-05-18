@@ -33,10 +33,10 @@ def chat(request):
     if not serializer.is_valid():
         return Response(serializer.errors, status=400)
 
-    student = request.user.student_profile
+    student_user = request.user
     message = serializer.validated_data['message']
 
-    result = services.chat_with_student_context(student, message)
+    result = services.chat_with_student_context(student_user, message)
 
     response_serializer = ChatResponseSerializer(result)
     return Response(response_serializer.data)

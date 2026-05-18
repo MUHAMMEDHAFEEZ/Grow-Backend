@@ -353,3 +353,6 @@ CELERY_TIMEZONE = "UTC"
 # Teacher access token: 15-minute expiry for teacher-specific endpoints
 TEACHER_ACCESS_TOKEN_LIFETIME = timedelta(minutes=15)
 TEACHER_REFRESH_TOKEN_LIFETIME = timedelta(days=30)
+
+# Google Gemini AI API key for student AI chat
+AI_API_KEY = os.getenv("AI_API_KEY", "")

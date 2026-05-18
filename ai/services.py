@@ -1,4 +1,4 @@
-import os
+from django.conf import settings
 
 
 def build_student_context(student):
@@ -46,23 +46,18 @@ Provide helpful, personalized advice based on the student's academic profile. Be
 
 
 def call_ai_api(prompt):
-    """Call AI API with prompt. Returns response or None on error."""
+    """Call Google Gemini API with prompt. Returns response or None on error."""
     try:
-        import openai
-        api_key = os.environ.get('OPENAI_API_KEY')
+        import google.generativeai as genai
+
+        api_key = settings.AI_API_KEY
         if not api_key:
             return None
 
-        openai.api_key = api_key
-
-        response = openai.chat.completions.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=500,
-            temperature=0.7,
-        )
-
-        return response.choices[0].message.content
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        response = model.generate_content(prompt)
+        return response.text
     except Exception:
         return None
 
