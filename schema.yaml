@@ -4679,13 +4679,33 @@ paths:
           description: ''
 components:
   schemas:
+    AcademicTrend:
+      type: object
+      properties:
+        average:
+          type: number
+          format: double
+        change:
+          type: number
+          format: double
+        monthly:
+          type: array
+          items:
+            $ref: '#/components/schemas/MonthlyTrend'
+        weekly:
+          type: array
+          items:
+            $ref: '#/components/schemas/WeeklyTrend'
+      required:
+      - average
+      - change
+      - monthly
+      - weekly
     Analytics:
       type: object
       properties:
         overall_academic_trend:
-          type: array
-          items:
-            $ref: '#/components/schemas/TrendPoint'
+          $ref: '#/components/schemas/AcademicTrend'
         study_hours:
           type: array
           items:
@@ -5234,8 +5254,7 @@ components:
         study_hours:
           $ref: '#/components/schemas/StudyHours'
         xp:
-          type: object
-          additionalProperties: {}
+          $ref: '#/components/schemas/XP'
         engagement:
           type: integer
         subject_performance:
@@ -5872,6 +5891,17 @@ components:
       - title
       - type
       - xp_reward
+    MonthlyTrend:
+      type: object
+      properties:
+        period:
+          type: string
+        average:
+          type: number
+          format: double
+      required:
+      - average
+      - period
     Notification:
       type: object
       properties:
@@ -7426,15 +7456,12 @@ components:
         total:
           type: number
           format: double
-        weekly:
+        change:
           type: number
           format: double
-        progress:
-          type: integer
       required:
-      - progress
+      - change
       - total
-      - weekly
     StudyHoursPoint:
       type: object
       properties:
@@ -8301,17 +8328,6 @@ components:
       - refresh
       - role
       - user_id
-    TrendPoint:
-      type: object
-      properties:
-        period:
-          type: string
-        average:
-          type: number
-          format: double
-      required:
-      - average
-      - period
     UpcomingItem:
       type: object
       properties:
@@ -8428,6 +8444,28 @@ components:
       required:
       - email
       - otp
+    WeeklyTrend:
+      type: object
+      properties:
+        period:
+          type: string
+        average:
+          type: number
+          format: double
+      required:
+      - average
+      - period
+    XP:
+      type: object
+      properties:
+        total:
+          type: integer
+        change:
+          type: number
+          format: double
+      required:
+      - change
+      - total
     XPAddRequest:
       type: object
       description: Serializer for adding XP.

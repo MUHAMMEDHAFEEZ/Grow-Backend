@@ -39,8 +39,6 @@ def _compute_dashboard(student_id: int) -> dict:
 def _compute_study_hours(student_id: int) -> dict:
     from study_sessions.models import StudySession
     
-    week_ago = timezone.now() - timedelta(days=7)
-    
     total_seconds = StudySession.objects.filter(
         student_id=student_id,
         ended_at__isnull=False
@@ -48,20 +46,28 @@ def _compute_study_hours(student_id: int) -> dict:
     
     total_hours = total_seconds / 3600 if total_seconds else 0
     
-    weekly_seconds = StudySession.objects.filter(
+    two_weeks_ago = timezone.now() - timedelta(days=14)
+    week_ago = timezone.now() - timedelta(days=7)
+    
+    prev_seconds = StudySession.objects.filter(
+        student_id=student_id,
+        ended_at__isnull=False,
+        started_at__gte=two_weeks_ago,
+        started_at__lt=week_ago
+    ).aggregate(total=Sum("duration"))["total"] or 0
+    
+    this_week_seconds = StudySession.objects.filter(
         student_id=student_id,
         ended_at__isnull=False,
         started_at__gte=week_ago
     ).aggregate(total=Sum("duration"))["total"] or 0
     
-    weekly_hours = weekly_seconds / 3600 if weekly_seconds else 0
-    
-    progress = (weekly_hours / WEEKLY_STUDY_GOAL_HOURS * 100) if weekly_hours > 0 else 0
+    prev_hours = prev_seconds / 3600 if prev_seconds else 0
+    this_week_hours = this_week_seconds / 3600 if this_week_seconds else 0
     
     return {
         "total": round(total_hours, 1),
-        "weekly": round(weekly_hours, 1),
-        "progress": round(min(progress, 100), 0),
+        "change": round(this_week_hours - prev_hours, 1),
     }
 
 
@@ -97,35 +103,46 @@ def _compute_engagement(student_id: int) -> int:
 
 
 def _compute_subject_performance(student_id: int) -> list:
+    from courses.models import Course
+    from students.models import Student as StudentProfile
     from submissions.models import Submission
-    
-    submissions = Submission.objects.filter(
+
+    profile = StudentProfile.objects.filter(user_id=student_id).first()
+    course_list = Course.objects.none()
+    if profile and profile.school_id:
+        course_list = Course.objects.filter(
+            school_id=profile.school_id,
+            grade_id=profile.grade_id,
+        )
+
+    graded = Submission.objects.filter(
         student_id=student_id,
-        status="graded"
+        status="graded",
     ).select_related("assignment__course")
-    
+
     course_grades = {}
-    for sub in submissions:
+    for sub in graded:
         assignment = sub.assignment
         if not assignment or not assignment.course:
             continue
         course = assignment.course
         course_id = course.id
         if course_id not in course_grades:
-            course_grades[course_id] = {"name": course.title, "scores": []}
+            course_grades[course_id] = {"scores": []}
         if sub.raw_score is not None:
             course_grades[course_id]["scores"].append(float(sub.raw_score))
-    
+
     subjects = []
-    for course_id, data in course_grades.items():
+    for course in course_list:
+        data = course_grades.get(course.id, {"scores": []})
         avg = sum(data["scores"]) / len(data["scores"]) if data["scores"] else 0
-        label = _get_grade_label(avg)
+        label = _get_grade_label(avg) if data["scores"] else "N/A"
         subjects.append({
-            "name": data["name"],
+            "name": course.title,
             "average": round(avg, 1),
             "grade": label,
         })
-    
+
     return subjects
 
 
