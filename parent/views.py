@@ -46,13 +46,19 @@ from .services.xp_service import get_monthly_xp, get_total_xp
 
 def _resolve_student_pk(student_code: str) -> int:
     try:
-        return Student.objects.values_list("id", flat=True).get(student_id=student_code)
+        return Student.objects.values_list("user_id", flat=True).get(student_id=student_code)
     except Student.DoesNotExist:
-        if student_code.isdigit():
-            pk = int(student_code)
-            if Student.objects.filter(id=pk).exists():
-                return pk
-        raise NotFound("Student not found.")
+        pass
+
+    if student_code.isdigit():
+        pk = int(student_code)
+        user_id = Student.objects.filter(id=pk).values_list("user_id", flat=True).first()
+        if user_id:
+            return user_id
+        if Student.objects.filter(user_id=pk).exists():
+            return pk
+
+    raise NotFound("Student not found.")
 
 
 class DashboardView(APIView):
@@ -383,8 +389,15 @@ def report_print(request: Request, student_code: str) -> Response:
 def notifications_list(request: Request) -> Response:
     qs = Notification.objects.filter(parent=request.user).order_by("-created_at")
 
-    page = int(request.query_params.get("page", 1))
-    page_size = int(request.query_params.get("page_size", 20))
+    try:
+        page = int(request.query_params.get("page", 1))
+        page_size = int(request.query_params.get("page_size", 20))
+    except (ValueError, TypeError):
+        return Response({"error": "Invalid pagination parameters."}, status=400)
+
+    page = max(page, 1)
+    page_size = max(page_size, 1)
+
     start = (page - 1) * page_size
     end = start + page_size
 
@@ -460,7 +473,7 @@ class SettingsView(APIView):
         full_name = request.data.get("full_name")
         notifications_enabled = request.data.get("notifications_enabled")
 
-        if full_name is not None:
+        if isinstance(full_name, str) and full_name.strip():
             parts = full_name.split()
             if parts:
                 user.first_name = parts[0]

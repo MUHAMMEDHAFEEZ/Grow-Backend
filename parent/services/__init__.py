@@ -18,12 +18,12 @@ ENGAGEMENT_WEIGHTS = {
 }
 
 
-def get_parent_dashboard(parent: User, student_id: int) -> dict:
+def get_parent_dashboard(parent: User, user_id: int) -> dict:
     from students.models import Student as StudentModel
-    owns = StudentModel.objects.filter(id=student_id, parent=parent).exists()
+    owns = StudentModel.objects.filter(user_id=user_id, parent=parent).exists()
     if not owns:
         raise PermissionDenied("You can only view your child's dashboard.")
-    return _compute_dashboard(student_id)
+    return _compute_dashboard(user_id)
 
 
 def _compute_dashboard(student_id: int) -> dict:

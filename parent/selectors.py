@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
@@ -6,10 +8,10 @@ from grades.models import Grade
 User = get_user_model()
 
 
-def verify_parent_owns_student(parent: User, student_id: int) -> bool:
+def verify_parent_owns_student(parent: User, user_id: int) -> bool:
     from students.models import Student
     return Student.objects.filter(
-        id=student_id,
+        user_id=user_id,
         parent=parent,
     ).exists()
 
@@ -31,7 +33,7 @@ def get_student_sessions(student_id: int):
 
 def get_student_sessions_this_week(student_id: int):
     from study_sessions.models import StudySession
-    week_ago = timezone.now() - timezone.timedelta(days=7)
+    week_ago = timezone.now() - timedelta(days=7)
     return StudySession.objects.filter(
         student_id=student_id,
         ended_at__isnull=False,

@@ -6147,9 +6147,6 @@ components:
     PatchedSettingsRequest:
       type: object
       properties:
-        full_name:
-          type: string
-          minLength: 1
         notifications_enabled:
           type: boolean
     PatchedTeacherAssignmentWriteRequest:
@@ -6925,6 +6922,7 @@ components:
       properties:
         full_name:
           type: string
+          readOnly: true
         email:
           type: string
           format: email
