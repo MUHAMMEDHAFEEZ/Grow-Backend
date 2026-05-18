@@ -65,7 +65,8 @@ def get_attendance_rate(student_id: int, year: int, month: int) -> float:
 def get_activity_calendar(student_id: int, year: int, month: int) -> list:
     from submissions.models import Submission
     from study_sessions.models import StudySession
-    from courses.models import QuizAttempt, LessonCompletion
+    from courses.models import QuizAttempt
+    from students.models import LessonCompletion
 
     active_dates = set()
 
@@ -90,9 +91,9 @@ def get_activity_calendar(student_id: int, year: int, month: int) -> list:
 
     for dt in QuizAttempt.objects.filter(
         student_id=student_id,
-        started_at__year=year,
-        started_at__month=month,
-    ).values_list("started_at", flat=True):
+        submitted_at__year=year,
+        submitted_at__month=month,
+    ).values_list("submitted_at", flat=True):
         active_dates.add(dt.date())
 
     for dt in LessonCompletion.objects.filter(
