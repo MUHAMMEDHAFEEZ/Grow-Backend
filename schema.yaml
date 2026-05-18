@@ -2462,7 +2462,7 @@ paths:
               schema:
                 description: Too many failed attempts. Rate limited.
           description: ''
-  /api/v1/parent/analytics/{student_id}/:
+  /api/v1/parent/analytics/{student_code}/:
     get:
       operationId: parent_analytics_retrieve
       description: 'Returns performance trends for the specified student. Accepts
@@ -2475,9 +2475,9 @@ paths:
           type: string
         description: 'Aggregation period: weekly, monthly, or yearly.'
       - in: path
-        name: student_id
+        name: student_code
         schema:
-          type: integer
+          type: string
         required: true
       tags:
       - Parent
@@ -2497,7 +2497,7 @@ paths:
               schema:
                 description: Invalid filter value.
           description: ''
-  /api/v1/parent/attendance/{student_id}/:
+  /api/v1/parent/attendance/{student_code}/:
     get:
       operationId: parent_attendance_retrieve
       description: Returns attendance data including study hours, streak, attendance
@@ -2505,9 +2505,9 @@ paths:
       summary: Get student attendance
       parameters:
       - in: path
-        name: student_id
+        name: student_code
         schema:
-          type: integer
+          type: string
         required: true
       tags:
       - Parent
@@ -2521,7 +2521,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Attendance'
           description: ''
-  /api/v1/parent/dashboard/{student_id}/:
+  /api/v1/parent/dashboard/{student_code}/:
     get:
       operationId: parent_dashboard_retrieve
       description: Returns analytics dashboard for the specified student. Only the
@@ -2529,10 +2529,10 @@ paths:
       summary: Get parent dashboard
       parameters:
       - in: path
-        name: student_id
+        name: student_code
         schema:
-          type: integer
-        description: ID of the student to view dashboard for.
+          type: string
+        description: Student code (e.g. STU-2024-G7-621).
         required: true
       tags:
       - Parent
@@ -2601,7 +2601,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Notification'
           description: Notification marked as read.
-  /api/v1/parent/report/{student_id}/:
+  /api/v1/parent/report/{student_code}/:
     get:
       operationId: parent_report_retrieve
       description: Returns a monthly performance report for the specified student.
@@ -2614,9 +2614,9 @@ paths:
         description: Month in YYYY-MM format.
         required: true
       - in: path
-        name: student_id
+        name: student_code
         schema:
-          type: integer
+          type: string
         required: true
       tags:
       - Parent
@@ -2630,7 +2630,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Report'
           description: ''
-  /api/v1/parent/report/{student_id}/print/:
+  /api/v1/parent/report/{student_code}/print/:
     get:
       operationId: parent_report_print_retrieve
       description: Returns a PDF version of the monthly report.
@@ -2643,9 +2643,9 @@ paths:
         description: Month in YYYY-MM format.
         required: true
       - in: path
-        name: student_id
+        name: student_code
         schema:
-          type: integer
+          type: string
         required: true
       tags:
       - Parent
