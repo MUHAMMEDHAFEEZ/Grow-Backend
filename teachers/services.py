@@ -191,7 +191,13 @@ def _create_refresh_token(user: User, ip_address: str | None = None, device_info
 def login_teacher(*, school_id: int, email: str, password: str, ip_address: str | None = None, device_info: str = "") -> tuple[User, str, str]:
     from django.contrib.auth import authenticate
 
-    user = authenticate(username=email, password=password)
+    # Resolve email -> username (signup stores username as email-part-before-@)
+    try:
+        user_obj = User.objects.get(email=email)
+    except User.DoesNotExist:
+        raise ValidationError("Invalid email or password.")
+
+    user = authenticate(username=user_obj.username, password=password)
     if not user or user.role != User.Role.TEACHER:
         raise ValidationError("Invalid email or password.")
 
