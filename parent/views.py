@@ -326,21 +326,24 @@ def analytics(request: Request, student_code: str) -> Response:
 @api_view(["GET"])
 @permission_classes([IsAuthenticated, IsParent])
 def attendance(request: Request, student_code: str) -> Response:
-    student_id = _resolve_student_pk(student_code)
-    if not verify_parent_owns_student(request.user, student_id):
-        return Response({"error": "You can only view your child's attendance."}, status=403)
+    try:
+        student_id = _resolve_student_pk(student_code)
+        if not verify_parent_owns_student(request.user, student_id):
+            return Response({"error": "You can only view your child's attendance."}, status=403)
 
-    now = timezone.now()
+        now = timezone.now()
 
-    recent = services._compute_recent_activity(student_id)
+        recent = services._compute_recent_activity(student_id)
 
-    return Response(AttendanceSerializer({
-        "total_study_hours": get_total_study_hours(student_id),
-        "study_streak": get_study_streak(student_id),
-        "attendance_rate": get_attendance_rate(student_id, now.year, now.month),
-        "activity_calendar": get_activity_calendar(student_id, now.year, now.month),
-        "recent_activity": recent,
-    }).data)
+        return Response(AttendanceSerializer({
+            "total_study_hours": get_total_study_hours(student_id),
+            "study_streak": get_study_streak(student_id),
+            "attendance_rate": get_attendance_rate(student_id, now.year, now.month),
+            "activity_calendar": get_activity_calendar(student_id, now.year, now.month),
+            "recent_activity": recent,
+        }).data)
+    except Exception as e:
+        return Response({"error": f"Failed to load attendance data: {str(e)}"}, status=500)
 
 
 # ── Report ──────────────────────────────────────────────────────────────────────
@@ -369,20 +372,21 @@ def attendance(request: Request, student_code: str) -> Response:
 @api_view(["GET"])
 @permission_classes([IsAuthenticated, IsParent])
 def report(request: Request, student_code: str) -> Response:
-    student_id = _resolve_student_pk(student_code)
-    if not verify_parent_owns_student(request.user, student_id):
-        return Response({"error": "You can only view your child's report."}, status=403)
-
-    month = request.query_params.get("month", "")
-    if not month:
-        return Response({"error": "month query param is required (YYYY-MM)."}, status=400)
-
     try:
+        student_id = _resolve_student_pk(student_code)
+        if not verify_parent_owns_student(request.user, student_id):
+            return Response({"error": "You can only view your child's report."}, status=403)
+
+        month = request.query_params.get("month", "")
+        if not month:
+            return Response({"error": "month query param is required (YYYY-MM)."}, status=400)
+
         data = get_monthly_report(student_id, month)
+        return Response(ReportSerializer(data).data)
     except ValueError as exc:
         return Response({"error": str(exc)}, status=400)
-
-    return Response(ReportSerializer(data).data)
+    except Exception as e:
+        return Response({"error": f"Failed to load report data: {str(e)}"}, status=500)
 
 
 @extend_schema(
@@ -409,19 +413,22 @@ def report(request: Request, student_code: str) -> Response:
 @api_view(["GET"])
 @permission_classes([IsAuthenticated, IsParent])
 def report_print(request: Request, student_code: str) -> Response:
-    student_id = _resolve_student_pk(student_code)
-    if not verify_parent_owns_student(request.user, student_id):
-        return Response({"error": "You can only view your child's report."}, status=403)
+    try:
+        student_id = _resolve_student_pk(student_code)
+        if not verify_parent_owns_student(request.user, student_id):
+            return Response({"error": "You can only view your child's report."}, status=403)
 
-    month = request.query_params.get("month", "")
-    if not month:
-        return Response({"error": "month query param is required (YYYY-MM)."}, status=400)
+        month = request.query_params.get("month", "")
+        if not month:
+            return Response({"error": "month query param is required (YYYY-MM)."}, status=400)
 
-    pdf = generate_pdf_report(student_id, month)
-    if pdf is None:
-        return Response({"error": "Failed to generate PDF."}, status=500)
+        pdf = generate_pdf_report(student_id, month)
+        if pdf is None:
+            return Response({"error": "Failed to generate PDF."}, status=500)
 
-    return HttpResponse(pdf, content_type="application/pdf")
+        return HttpResponse(pdf, content_type="application/pdf")
+    except Exception as e:
+        return Response({"error": f"Failed to generate report: {str(e)}"}, status=500)
 
 
 # ── Notifications ───────────────────────────────────────────────────────────────
