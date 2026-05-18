@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 from django.conf import settings
 from django.core.cache import cache
@@ -23,6 +23,12 @@ def invalidate_report_cache(student_id: int, year_month: str) -> None:
 
 
 def get_monthly_report(student_id: int, year_month: str) -> dict:
+    from attendance.models import AttendanceRecord
+    from assignments.models import Assignment
+    from courses.models import Course
+    from students.models import Student as StudentProfile
+    from study_sessions.models import LoginHistory
+
     year, month = _parse_year_month(year_month)
 
     grades_qs = Grade.objects.filter(
@@ -33,7 +39,24 @@ def get_monthly_report(student_id: int, year_month: str) -> dict:
     )
     overall_avg = grades_qs.aggregate(avg=Avg("score"))["avg"] or 0.0
 
-    from assignments.models import Assignment
+    past_month = month - 1 or 12
+    past_year = year if month > 1 else year - 1
+    past_avg = Grade.objects.filter(
+        submission__student_id=student_id,
+        submission__status="graded",
+        graded_at__year=past_year,
+        graded_at__month=past_month,
+    ).aggregate(avg=Avg("score"))["avg"] or 0.0
+
+    def _grade_label(avg):
+        if avg >= 90:
+            return "A"
+        if avg >= 80:
+            return "B"
+        if avg >= 70:
+            return "C"
+        return "D"
+
     total_assignments = Assignment.objects.filter(
         course__student_courses__student_id=student_id,
         due_date__year=year,
@@ -64,18 +87,75 @@ def get_monthly_report(student_id: int, year_month: str) -> dict:
         subject_grades[course_name]["scores"].append(float(g.score))
         subject_grades[course_name]["total"] += 1
 
-    subject_performance = [
-        {
-            "name": name,
-            "average": round(sum(d["scores"]) / len(d["scores"]), 1),
-            "completed": d["total"],
-        }
-        for name, d in subject_grades.items()
-    ]
+    profile = StudentProfile.objects.filter(user_id=student_id).first()
+    course_list = Course.objects.none()
+    if profile and profile.school_id:
+        course_list = Course.objects.filter(
+            school_id=profile.school_id, grade_id=profile.grade_id,
+        )
+
+    subject_performance = []
+    for course in course_list:
+        data = subject_grades.get(course.title, {"scores": [], "total": 0})
+        avg = round(sum(data["scores"]) / len(data["scores"]), 1) if data["scores"] else 0
+
+        current_submissions_count = Submission.objects.filter(
+            student_id=student_id,
+            assignment__course=course,
+            submitted_at__year=year,
+            submitted_at__month=month,
+        ).count()
+
+        total_course_assignments = Assignment.objects.filter(
+            course=course, due_date__year=year, due_date__month=month,
+        ).count()
+        submissions_str = f"{current_submissions_count}/{total_course_assignments or 1}"
+
+        subject_performance.append({
+            "name": course.title,
+            "total_percent": avg,
+            "change": round(avg - past_avg, 1),
+            "grade": _grade_label(avg) if data["scores"] else "N/A",
+            "submissions": submissions_str,
+        })
+
+    sun_thu = 0
+    for d in range(1, 32):
+        try:
+            dd = date(year, month, d)
+            if dd.weekday() < 5:
+                sun_thu += 1
+        except ValueError:
+            break
+    present = AttendanceRecord.objects.filter(
+        student_id=student_id, date__year=year, date__month=month,
+        status__in=["present", "late"],
+    ).count()
+    attendance_rate = round((present / sun_thu) * 100, 1) if sun_thu else 0.0
+
+    login_dates = set(
+        LoginHistory.objects.filter(student_id=student_id)
+        .values_list("login_date", flat=True)
+    )
+    streak = 0
+    today = date.today()
+    for i in range(365):
+        if today - timedelta(days=i) in login_dates:
+            streak += 1
+        else:
+            break
 
     return {
         "month": year_month,
-        "overall_average": round(float(overall_avg), 1),
+        "overall_average": {
+            "total": round(float(overall_avg), 1),
+            "grade": _grade_label(float(overall_avg)),
+            "change": round(float(overall_avg) - float(past_avg), 1),
+        },
+        "attendance": {
+            "total": attendance_rate,
+            "streak": streak,
+        },
         "assignment_summary": {
             "total": total_assignments,
             "submitted": submitted,
