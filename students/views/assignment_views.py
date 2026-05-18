@@ -54,6 +54,10 @@ def assignment_submit_view(request, assignment_id):
     if not is_valid:
         return Response({"error": error}, status=400)
 
+    existing = Submission.objects.filter(assignment=assignment, student=request.user).first()
+    if existing and existing.is_graded:
+        return Response({"error": "This graded submission cannot be resubmitted."}, status=400)
+
     submission, created = Submission.objects.update_or_create(
         assignment=assignment,
         student=request.user,

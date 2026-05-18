@@ -114,6 +114,13 @@ class ParentNotificationSerializer(serializers.Serializer):
     created_at = serializers.DateTimeField()
 
 
+class ParentLinkSerializer(serializers.Serializer):
+    school_id = serializers.IntegerField(required=True)
+    full_name = serializers.CharField(required=True)
+    enrollment_code = serializers.CharField(required=True, write_only=True)
+    grade_id = serializers.IntegerField(required=True)
+
+
 class LinkedStudentSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     full_name = serializers.CharField()

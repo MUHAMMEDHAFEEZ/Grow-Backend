@@ -278,14 +278,35 @@ def verify_otp(*, email: str, otp: str) -> str:
         raise ValidationError("Invalid or expired OTP.")
 
     record.is_used = True
-    record.save(update_fields=["is_used"])
-
     reset_token = secrets.token_urlsafe(32)
+    record.reset_token_hash = _hash_token(reset_token)
+    record.save(update_fields=["is_used", "reset_token_hash"])
+
     return reset_token
 
 
 def reset_password(*, reset_token: str, new_password: str):
-    pass
+    token_hash = _hash_token(reset_token)
+    try:
+        record = OTPRecord.objects.get(
+            reset_token_hash=token_hash, expires_at__gte=timezone.now()
+        )
+    except OTPRecord.DoesNotExist:
+        raise ValidationError("Invalid or expired reset token.")
+
+    try:
+        user = User.objects.get(email=record.email, role=User.Role.TEACHER)
+    except User.DoesNotExist:
+        raise NotFound("Teacher not found.")
+
+    user.set_password(new_password)
+    user.save(update_fields=["password"])
+
+    RefreshToken.objects.filter(teacher=user, is_revoked=False).update(is_revoked=True)
+    record.reset_token_hash = None
+    record.save(update_fields=["reset_token_hash"])
+
+    _log_audit("teacher", user.id, "password_reset", "User", user.id)
 
 
 def change_password(*, user: User, new_password: str):
@@ -547,9 +568,10 @@ def create_teacher_quiz(*, teacher: User, **data) -> Quiz:
     lesson_id = data.pop("lesson_id", None)
     questions_data = data.pop("questions", [])
 
-    if data.get("end_time") <= data.get("start_time"):
-        raise ValidationError("end_time must be after start_time.")
-    if data.get("start_time") <= timezone.now():
+    if data.get("end_time") and data.get("start_time"):
+        if data["end_time"] <= data["start_time"]:
+            raise ValidationError("end_time must be after start_time.")
+    if data.get("start_time") and data["start_time"] <= timezone.now():
         raise ValidationError("start_time must be in the future.")
 
     quiz = Quiz.objects.create(
