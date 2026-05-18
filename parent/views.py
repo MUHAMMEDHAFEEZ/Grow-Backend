@@ -332,11 +332,14 @@ def attendance(request: Request, student_code: str) -> Response:
 
     now = timezone.now()
 
+    recent = services._compute_recent_activity(student_id)
+
     return Response(AttendanceSerializer({
         "total_study_hours": get_total_study_hours(student_id),
         "study_streak": get_study_streak(student_id),
         "attendance_rate": get_attendance_rate(student_id, now.year, now.month),
         "activity_calendar": get_activity_calendar(student_id, now.year, now.month),
+        "recent_activity": recent,
     }).data)
 
 

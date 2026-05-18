@@ -4886,10 +4886,9 @@ components:
       type: object
       properties:
         total_study_hours:
-          type: number
-          format: double
+          $ref: '#/components/schemas/StudyHoursTotal'
         study_streak:
-          type: integer
+          $ref: '#/components/schemas/Streak'
         attendance_rate:
           type: number
           format: double
@@ -4897,9 +4896,14 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/CalendarDay'
+        recent_activity:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecentActivity'
       required:
       - activity_calendar
       - attendance_rate
+      - recent_activity
       - study_streak
       - total_study_hours
     AttendanceRecord:
@@ -4986,6 +4990,17 @@ components:
         * `present` - Present
         * `absent` - Absent
         * `late` - Late
+    AttendanceSummary:
+      type: object
+      properties:
+        total:
+          type: number
+          format: double
+        streak:
+          type: integer
+      required:
+      - streak
+      - total
     CalendarDay:
       type: object
       properties:
@@ -6001,6 +6016,21 @@ components:
       required:
       - access_token
       - provider
+    OverallAverage:
+      type: object
+      properties:
+        total:
+          type: number
+          format: double
+        grade:
+          type: string
+        change:
+          type: number
+          format: double
+      required:
+      - change
+      - grade
+      - total
     PaginatedSchoolGradeList:
       type: object
       required:
@@ -6670,8 +6700,9 @@ components:
         month:
           type: string
         overall_average:
-          type: number
-          format: double
+          $ref: '#/components/schemas/OverallAverage'
+        attendance:
+          $ref: '#/components/schemas/AttendanceSummary'
         assignment_summary:
           $ref: '#/components/schemas/AssignmentSummary'
         total_xp:
@@ -6682,6 +6713,7 @@ components:
             $ref: '#/components/schemas/SubjectReport'
       required:
       - assignment_summary
+      - attendance
       - month
       - overall_average
       - subject_performance
@@ -7007,6 +7039,16 @@ components:
         * `assignment` - Assignment
         * `quiz` - Quiz
         * `attendance` - Attendance
+    Streak:
+      type: object
+      properties:
+        total:
+          type: integer
+        change:
+          type: integer
+      required:
+      - change
+      - total
     StudentAttendance:
       type: object
       properties:
@@ -7473,6 +7515,18 @@ components:
       required:
       - hours
       - period
+    StudyHoursTotal:
+      type: object
+      properties:
+        total:
+          type: number
+          format: double
+        change:
+          type: number
+          format: double
+      required:
+      - change
+      - total
     StudySession:
       type: object
       properties:
@@ -7538,15 +7592,22 @@ components:
       properties:
         name:
           type: string
-        average:
+        total_percent:
           type: number
           format: double
-        completed:
-          type: integer
+        change:
+          type: number
+          format: double
+        grade:
+          type: string
+        submissions:
+          type: string
       required:
-      - average
-      - completed
+      - change
+      - grade
       - name
+      - submissions
+      - total_percent
     Submission:
       type: object
       properties:

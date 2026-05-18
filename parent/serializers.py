@@ -94,16 +94,27 @@ class AnalyticsSerializer(serializers.Serializer):
     subject_breakdown = SubjectBreakdownSerializer(many=True)
 
 
+class StudyHoursTotalSerializer(serializers.Serializer):
+    total = serializers.FloatField()
+    change = serializers.FloatField()
+
+
+class StreakSerializer(serializers.Serializer):
+    total = serializers.IntegerField()
+    change = serializers.IntegerField()
+
+
 class CalendarDaySerializer(serializers.Serializer):
     date = serializers.CharField()
     status = serializers.CharField()
 
 
 class AttendanceSerializer(serializers.Serializer):
-    total_study_hours = serializers.FloatField()
-    study_streak = serializers.IntegerField()
+    total_study_hours = StudyHoursTotalSerializer()
+    study_streak = StreakSerializer()
     attendance_rate = serializers.FloatField()
     activity_calendar = CalendarDaySerializer(many=True)
+    recent_activity = RecentActivitySerializer(many=True)
 
 
 class AssignmentSummarySerializer(serializers.Serializer):
@@ -114,13 +125,27 @@ class AssignmentSummarySerializer(serializers.Serializer):
 
 class SubjectReportSerializer(serializers.Serializer):
     name = serializers.CharField()
-    average = serializers.FloatField()
-    completed = serializers.IntegerField()
+    total_percent = serializers.FloatField()
+    change = serializers.FloatField()
+    grade = serializers.CharField()
+    submissions = serializers.CharField()
+
+
+class OverallAverageSerializer(serializers.Serializer):
+    total = serializers.FloatField()
+    grade = serializers.CharField()
+    change = serializers.FloatField()
+
+
+class AttendanceSummarySerializer(serializers.Serializer):
+    total = serializers.FloatField()
+    streak = serializers.IntegerField()
 
 
 class ReportSerializer(serializers.Serializer):
     month = serializers.CharField()
-    overall_average = serializers.FloatField()
+    overall_average = OverallAverageSerializer()
+    attendance = AttendanceSummarySerializer()
     assignment_summary = AssignmentSummarySerializer()
     total_xp = serializers.IntegerField()
     subject_performance = SubjectReportSerializer(many=True)
