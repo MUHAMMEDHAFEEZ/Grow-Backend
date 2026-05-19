@@ -72,15 +72,6 @@ def chat_with_student_context(student, message):
 
     context = build_student_context(student)
 
-    has_data = (
-        context['gpa'] > 0 or
-        context['courses'] or
-        context['total_xp'] > 0
-    )
-
-    if not has_data:
-        return {'reply': "Welcome! I don't see any academic data yet. Keep studying and completing assignments, and I'll be able to give you personalized advice based on your progress!"}
-
     prompt = build_ai_prompt(context, message)
 
     reply = call_ai_api(prompt)
