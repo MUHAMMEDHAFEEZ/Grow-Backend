@@ -1,4 +1,8 @@
+import logging
+
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 
 def build_student_context(student):
@@ -52,31 +56,56 @@ def call_ai_api(prompt):
 
         api_key = settings.AI_API_KEY
         if not api_key:
+            logger.warning("AI_API_KEY not set — AI chat unavailable.")
             return None
 
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel("gemini-1.5-flash")
         response = model.generate_content(prompt)
         return response.text
-    except Exception:
+    except Exception as exc:
+        logger.error("Gemini API call failed: %s", exc, exc_info=True)
         return None
 
 
+def _fallback_reply(message: str, context: dict) -> str:
+    """Simple fallback response when AI API is unavailable."""
+    message_lower = message.lower().strip()
+
+    greetings = ["hi", "hello", "hey", "hi there", "hello there", "good morning", "good afternoon"]
+    if message_lower in greetings or message_lower.startswith(tuple(g.strip() for g in ["hi", "hello", "hey"])):
+        name_part = context.get("full_name", "")
+        greeting = f"Hello {name_part}!" if name_part else "Hello!"
+        if context["courses"]:
+            return f"{greeting} I see you're enrolled in {', '.join(context['courses'][:3])}. How can I help you with your studies today?"
+        return f"{greeting} How can I help you with your studies today?"
+
+    thanks = ["thank", "thanks", "thx", "thank you"]
+    if any(t in message_lower for t in thanks):
+        return "You're welcome! Keep up the great work! 😊"
+
+    return "I'm here to help with your studies! You can ask me about your courses, grades, study tips, or anything academic."
+
+
+def _get_full_name(student) -> str:
+    try:
+        return student.get_full_name() or ""
+    except Exception:
+        return ""
+
+
 def chat_with_student_context(student, message):
-    """
-    Main chat function: send message with student context.
-    Returns dict with 'reply' key.
-    """
     if not message or not message.strip():
         return {'reply': 'Please ask me a question!'}
 
     context = build_student_context(student)
+    context["full_name"] = _get_full_name(student)
 
     prompt = build_ai_prompt(context, message)
 
     reply = call_ai_api(prompt)
 
     if reply is None:
-        return {'reply': 'Sorry, I encountered an error processing your request. Please try again later. If the problem persists, please contact support.'}
+        reply = _fallback_reply(message, context)
 
     return {'reply': reply}
