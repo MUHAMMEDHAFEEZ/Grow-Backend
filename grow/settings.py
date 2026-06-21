@@ -173,9 +173,14 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 LOGIN_URL = "login"
 
-#  ======================  Email — prints to console in development; swap for SMTP in production ======================
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-DEFAULT_FROM_EMAIL = "noreply@grow-platform.io"
+#  ======================  Email — SMTP (configure in .env) ======================
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
+EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True").lower() in ("true", "1", "yes")
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@grow-platform.io")
 
 
 AUTH_USER_MODEL = "accounts.User"
@@ -360,6 +365,13 @@ CELERY_TIMEZONE = "UTC"
 # Teacher access token: 15-minute expiry for teacher-specific endpoints
 TEACHER_ACCESS_TOKEN_LIFETIME = timedelta(minutes=15)
 TEACHER_REFRESH_TOKEN_LIFETIME = timedelta(days=30)
+
+# Google OAuth
+GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID", "")
+
+# Facebook OAuth
+FACEBOOK_APP_ID = os.getenv("FACEBOOK_APP_ID", "")
+FACEBOOK_APP_SECRET = os.getenv("FACEBOOK_APP_SECRET", "")
 
 # Google Gemini AI for student AI chat
 AI_API_KEY = os.getenv("AI_API_KEY", "")

@@ -3,11 +3,9 @@ import random
 import secrets
 from datetime import timedelta
 
-from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.hashers import check_password, make_password
 from django.core.cache import cache
-from django.core.mail import send_mail
 from django.db import transaction
 from django.utils import timezone
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -259,13 +257,9 @@ def send_otp(email):
         expires_at=timezone.now() + timedelta(minutes=10),
     )
 
-    send_mail(
-        subject="Your OTP Code",
-        message=f"Your OTP code is: {otp_code}\nThis code expires in 10 minutes.",
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[email],
-        fail_silently=True,
-    )
+    from students.tasks import send_otp_email as send_otp_email_task
+
+    transaction.on_commit(lambda: send_otp_email_task.delay(email, otp_code))
 
 
 def verify_otp(email, otp_code):
