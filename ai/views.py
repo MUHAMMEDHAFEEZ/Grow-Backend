@@ -1,10 +1,19 @@
+import logging
+
 from drf_spectacular.utils import OpenApiResponse, extend_schema
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import UserRateThrottle
 
 from ai.serializers import ChatRequestSerializer, ChatResponseSerializer
 from ai import services
+
+logger = logging.getLogger(__name__)
+
+
+class AiUserThrottle(UserRateThrottle):
+    scope = "ai"
 
 
 @extend_schema(
@@ -20,9 +29,11 @@ from ai import services
 )
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@throttle_classes([AiUserThrottle])
 def chat(request):
     """Chat with AI assistant using student context."""
-    if not hasattr(request.user, 'student_profile'):
+    student_profile = getattr(request.user, 'student_profile', None)
+    if student_profile is None:
         return Response(
             {"error": "Student profile not found"},
             status=404
@@ -33,10 +44,12 @@ def chat(request):
     if not serializer.is_valid():
         return Response(serializer.errors, status=400)
 
-    student_user = request.user
     message = serializer.validated_data['message']
+    logger.info("AI chat request — student=%s message_len=%d", request.user.id, len(message))
 
-    result = services.chat_with_student_context(student_user, message)
+    result = services.chat_with_student_context(request.user, message)
+
+    logger.info("AI chat response — student=%s reply_len=%d", request.user.id, len(result['reply']))
 
     response_serializer = ChatResponseSerializer(result)
     return Response(response_serializer.data)
