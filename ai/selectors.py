@@ -44,18 +44,20 @@ def get_student_grades(user):
 def get_student_assignments(user):
     """Get student's assignments and submission status."""
     from assignments.models import Assignment
-    from submissions.models import Submission
 
     assignments = Assignment.objects.filter(
         course__student_courses__student=user
-    ).select_related('course')
+    ).select_related('course').prefetch_related(
+        'submission_set'
+    )
 
     results = []
     for assignment in assignments:
-        submission = Submission.objects.filter(
-            student=user,
-            assignment=assignment
-        ).first()
+        submission = None
+        for s in assignment.submission_set.all():
+            if s.student_id == user.id:
+                submission = s
+                break
 
         results.append({
             'id': assignment.id,

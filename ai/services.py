@@ -2,7 +2,16 @@ import logging
 
 from django.conf import settings
 
+from ai.models import ChatMessage
+
 logger = logging.getLogger(__name__)
+
+try:
+    import google.generativeai as genai_mod
+except ImportError:
+    genai_mod = None
+
+MAX_HISTORY_MESSAGES = 10
 
 
 def build_student_context(student):
@@ -30,38 +39,56 @@ def build_student_context(student):
     }
 
 
-def build_ai_prompt(context, message):
-    """Build AI prompt with student context."""
-    prompt = f"""You are a smart and helpful tutor AI assistant for students.
-
-Student Academic Profile:
-- GPA: {context['gpa']}
-- Enrolled Courses: {', '.join(context['courses']) if context['courses'] else 'None'}
-- Weak Subjects: {', '.join(context['weak_subjects']) if context['weak_subjects'] else 'None'}
-- Recent Scores: {context['recent_scores']}
-- Study Hours This Week: {context['study_hours']}
-- Attendance Rate: {context['attendance_rate']}%
-- Total XP: {context['total_xp']}
-
-Student Question: {message}
-
-Provide helpful, personalized advice based on the student's academic profile. Be encouraging but specific."""
-    return prompt
+def _serialize_history_for_prompt(history):
+    """Convert ChatMessage queryset into Gemini-style history list."""
+    parts = []
+    for msg in history:
+        parts.append(f"{msg.role}: {msg.message}")
+    return "\n".join(parts)
 
 
-def call_ai_api(prompt):
-    """Call Google Gemini API with prompt. Returns response or None on error."""
+def _get_system_instruction(context):
+    """Build the system instruction from student context."""
+    courses = ', '.join(context['courses']) if context['courses'] else 'None'
+    weak = ', '.join(context['weak_subjects']) if context['weak_subjects'] else 'None'
+
+    return (
+        "You are a smart and helpful tutor AI assistant for students. "
+        "Keep responses clear, encouraging, and specific to the student's own profile.\n\n"
+        "Student Academic Profile:\n"
+        f"- GPA: {context['gpa']}\n"
+        f"- Enrolled Courses: {courses}\n"
+        f"- Weak Subjects: {weak}\n"
+        f"- Recent Scores: {context['recent_scores']}\n"
+        f"- Study Hours This Week: {context['study_hours']}\n"
+        f"- Attendance Rate: {context['attendance_rate']}%\n"
+        f"- Total XP: {context['total_xp']}"
+    )
+
+
+def call_ai_api(system_instruction, history_text, message):
+    """Call Google Gemini API with system instruction, history, and user message.
+
+    Returns response text or None on error.
+    """
     try:
-        import google.generativeai as genai
+        if genai_mod is None:
+            logger.warning("google.generativeai not installed - AI chat unavailable.")
+            return None
 
         api_key = settings.AI_API_KEY
         if not api_key:
-            logger.warning("AI_API_KEY not set — AI chat unavailable.")
+            logger.warning("AI_API_KEY not set - AI chat unavailable.")
             return None
 
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-1.5-flash")
-        response = model.generate_content(prompt)
+        genai_mod.configure(api_key=api_key)
+        model = genai_mod.GenerativeModel(
+            settings.AI_MODEL_NAME,
+            system_instruction=system_instruction,
+        )
+
+        full_prompt = history_text + f"\nuser: {message}\nassistant:"
+        response = model.generate_content(full_prompt)
         return response.text
     except Exception as exc:
         logger.error("Gemini API call failed: %s", exc, exc_info=True)
@@ -82,7 +109,7 @@ def _fallback_reply(message: str, context: dict) -> str:
 
     thanks = ["thank", "thanks", "thx", "thank you"]
     if any(t in message_lower for t in thanks):
-        return "You're welcome! Keep up the great work! 😊"
+        return "You're welcome! Keep up the great work!"
 
     return "I'm here to help with your studies! You can ask me about your courses, grades, study tips, or anything academic."
 
@@ -101,11 +128,29 @@ def chat_with_student_context(student, message):
     context = build_student_context(student)
     context["full_name"] = _get_full_name(student)
 
-    prompt = build_ai_prompt(context, message)
+    system_instruction = _get_system_instruction(context)
 
-    reply = call_ai_api(prompt)
+    history = ChatMessage.objects.filter(
+        student=student.user if hasattr(student, 'user') else student
+    ).order_by('-created_at')[:MAX_HISTORY_MESSAGES]
+
+    history = list(reversed(history))
+    history_text = _serialize_history_for_prompt(history)
+
+    reply = call_ai_api(system_instruction, history_text, message)
 
     if reply is None:
         reply = _fallback_reply(message, context)
+
+    ChatMessage.objects.create(
+        student=student.user if hasattr(student, 'user') else student,
+        role=ChatMessage.Role.USER,
+        message=message,
+    )
+    ChatMessage.objects.create(
+        student=student.user if hasattr(student, 'user') else student,
+        role=ChatMessage.Role.ASSISTANT,
+        message=reply,
+    )
 
     return {'reply': reply}

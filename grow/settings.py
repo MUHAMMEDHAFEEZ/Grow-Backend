@@ -197,6 +197,10 @@ REST_FRAMEWORK = {
         "rest_framework.filters.OrderingFilter",
     ],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_THROTTLE_CLASSES": [],
+    "DEFAULT_THROTTLE_RATES": {
+        "ai": "20/hour",
+    },
 }
 
 # ====================== drf-spectacular (OpenAPI / Swagger) ======================
@@ -291,6 +295,9 @@ LOGGING = {
         "core.rate_limit": {
             "level": "WARNING",
         },
+        "ai": {
+            "level": "INFO",
+        },
     },
 }
 
@@ -354,5 +361,6 @@ CELERY_TIMEZONE = "UTC"
 TEACHER_ACCESS_TOKEN_LIFETIME = timedelta(minutes=15)
 TEACHER_REFRESH_TOKEN_LIFETIME = timedelta(days=30)
 
-# Google Gemini AI API key for student AI chat
+# Google Gemini AI for student AI chat
 AI_API_KEY = os.getenv("AI_API_KEY", "")
+AI_MODEL_NAME = os.getenv("AI_MODEL_NAME", "gemini-3.5-flash")
