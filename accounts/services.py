@@ -3,6 +3,7 @@ accounts/services.py — Business logic for user/auth operations.
 """
 from __future__ import annotations
 
+import logging
 import uuid as _uuid_module
 from datetime import timedelta
 
@@ -29,6 +30,8 @@ from .models import (
 )
 
 User = get_user_model()
+
+logger = logging.getLogger(__name__)
 
 
 def register_user(*, username: str, email: str, password: str, role: str) -> User:
@@ -83,8 +86,12 @@ def _validate_google_token(access_token: str) -> str | None:
     try:
         from google.oauth2 import id_token
         from google.auth.transport import requests
-        import os
-        client_id = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "")
+
+        client_id = settings.GOOGLE_OAUTH_CLIENT_ID
+        if not client_id:
+            logger.warning("GOOGLE_OAUTH_CLIENT_ID is not configured.")
+            return None
+
         info = id_token.verify_oauth2_token(access_token, requests.Request(), client_id)
         return info.get("email")
     except Exception:
@@ -93,7 +100,28 @@ def _validate_google_token(access_token: str) -> str | None:
 
 def _validate_facebook_token(access_token: str) -> str | None:
     import requests as http_requests
+
+    app_id = settings.FACEBOOK_APP_ID
+    app_secret = settings.FACEBOOK_APP_SECRET
+
     try:
+        if app_id and app_secret:
+            app_token = f"{app_id}|{app_secret}"
+            debug_resp = http_requests.get(
+                "https://graph.facebook.com/debug_token",
+                params={"input_token": access_token, "access_token": app_token},
+                timeout=10,
+            )
+            debug_data = debug_resp.json()
+
+            if debug_data.get("data", {}).get("is_valid") is not True:
+                logger.warning("Facebook token validation failed: %s", debug_data)
+                return None
+
+            if str(debug_data["data"].get("app_id")) != app_id:
+                logger.warning("Facebook token was not issued by this app.")
+                return None
+
         resp = http_requests.get(
             "https://graph.facebook.com/v25.0/me",
             params={"fields": "id,name,email", "access_token": access_token},
